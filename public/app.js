@@ -140,7 +140,7 @@ function render(data) {
       </div>
       <div class="project-dir">${escapeHtml(shortenPath(proc.projectDir))}</div>
       <div class="card-tags">
-        ${proc.gitBranch ? `<div class="git-branch">⎇ ${escapeHtml(proc.gitBranch)}</div>` : ""}
+        ${proc.gitBranch ? `<div class="git-branch"><img src="git-branch.svg" class="git-branch-icon" alt="branch"> ${escapeHtml(proc.gitBranch)}</div>` : ""}
         ${proc.modelName ? `<div class="model-name">${escapeHtml(proc.modelName.replace("claude-", ""))}</div>` : ""}
       </div>
       ${proc.currentTask ? `<div class="current-task">${escapeHtml(proc.currentTask)}</div>` : ""}
@@ -149,16 +149,18 @@ function render(data) {
         ${proc.openFiles.slice(0, 5).map(f => `<div class="open-file">${escapeHtml(f)}</div>`).join("")}
         ${proc.openFiles.length > 5 ? `<div class="open-file open-file-more">+${proc.openFiles.length - 5} more</div>` : ""}
       </div>` : ""}
-      ${proc.containers && proc.containers.length > 0 ? `
+      ${proc.containers && proc.containers.length > 0 ? (() => {
+        const running = proc.containers.filter(c => c.state === "running");
+        const stopped = proc.containers.filter(c => c.state !== "running");
+        return `
       <div class="card-containers">
         <div class="containers-header">🐳 Containers <span class="containers-count">${proc.containers.length}</span></div>
-        ${proc.containers.map(c => `
-          <div class="container-item">
-            <span class="container-state container-state-${escapeHtml(c.state)}">${escapeHtml(c.state)}</span>
-            <span class="container-service">${escapeHtml(c.service)}</span>
-            <span class="container-status">${escapeHtml(c.status)}</span>
-          </div>`).join("")}
-      </div>` : ""}
+        <div class="container-badges">
+          ${running.map(c => `<span class="container-badge container-badge-running">${escapeHtml(c.service)}</span>`).join("")}
+          ${stopped.map(c => `<span class="container-badge container-badge-stopped">${escapeHtml(c.service)}</span>`).join("")}
+        </div>
+      </div>`;
+      })() : ""}
       <div class="card-footer">
         <button class="stats-toggle" aria-label="toggle stats">···</button>
       </div>

@@ -241,6 +241,14 @@ main {
   margin-bottom: 10px;
 }
 
+.git-branch-icon {
+  width: 12px;
+  height: 12px;
+  opacity: 0.7;
+  filter: invert(60%) sepia(10%) saturate(400%) hue-rotate(180deg);
+  flex-shrink: 0;
+}
+
 .git-branch {
   display: inline-flex;
   align-items: center;
@@ -405,49 +413,29 @@ main {
   color: var(--text-muted);
 }
 
-.container-item {
+.container-badges {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.container-badge {
   font-size: 11px;
-  font-family: monospace;
-}
-
-.container-service {
-  color: var(--text);
-  font-weight: 500;
-}
-
-.container-status {
-  color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 10px;
   white-space: nowrap;
 }
 
-.container-state {
-  font-size: 10px;
-  font-weight: 600;
-  padding: 1px 5px;
-  border-radius: 3px;
-  flex-shrink: 0;
-}
-
-.container-state-running {
+.container-badge-running {
   background: color-mix(in srgb, var(--green) 15%, transparent);
   color: var(--green);
 }
 
-.container-state-exited {
-  background: color-mix(in srgb, #f85149 15%, transparent);
-  color: #f85149;
-}
-
-.container-state-restarting,
-.container-state-paused,
-.container-state-dead {
-  background: color-mix(in srgb, #d29922 15%, transparent);
-  color: #d29922;
+.container-badge-stopped {
+  background: color-mix(in srgb, var(--text-muted) 10%, transparent);
+  color: var(--text-muted);
+  opacity: 0.6;
 }
 
 .pid {
