@@ -48,4 +48,5 @@ export interface DashboardData {
   totalWorking: number;
   totalIdle: number;
   usage: UsageData;
+  focusedProjectDir: string | null;
 }

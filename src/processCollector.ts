@@ -5,7 +5,7 @@ import { parseElapsedSeconds } from "./utils/processUtils.js";
 import { readSessionData, collectRateLimitUsage } from "./collectors/sessionCollector.js";
 import { getGitInfo } from "./collectors/gitCollector.js";
 import { collectDockerContainers } from "./collectors/dockerCollector.js";
-import { collectEditorWindows } from "./collectors/editorCollector.js";
+import { collectEditorWindows, getFocusedEditorDir } from "./collectors/editorCollector.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -146,6 +146,9 @@ export async function collectProcesses(): Promise<DashboardData> {
     return true;
   });
 
+  const allKnownWindows = [...allEditorWindows, ...visible.map(p => ({ app: p.editorApp, projectDir: p.projectDir, projectName: p.projectName })).filter(w => w.app)] as import("./types.js").EditorWindow[];
+  const focusedProjectDir = await getFocusedEditorDir(allKnownWindows);
+
   const usage: UsageData = {
     totalInputTokens,
     totalOutputTokens,
@@ -159,5 +162,6 @@ export async function collectProcesses(): Promise<DashboardData> {
     totalWorking,
     totalIdle,
     usage,
+    focusedProjectDir,
   };
 }

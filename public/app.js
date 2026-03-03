@@ -126,7 +126,7 @@ function render(data) {
     .sort((a, b) => a.repoName.localeCompare(b.repoName));
 
   const cardHtml = (proc) => `
-    <div class="card ${proc.status}" data-pid="${proc.pid}" role="button" tabindex="0">
+    <div class="card ${proc.status}${data.focusedProjectDir === proc.projectDir && proc.status !== "working" ? " editor-focused" : ""}" data-pid="${proc.pid}" role="button" tabindex="0">
       <div class="card-header">
         <div class="project-name-row">
           <div class="project-name">${escapeHtml(proc.projectName)}</div>
@@ -152,14 +152,11 @@ function render(data) {
       ${proc.containers && proc.containers.length > 0 ? (() => {
         const running = proc.containers.filter(c => c.state === "running");
         const stopped = proc.containers.filter(c => c.state !== "running");
-        return `
-      <div class="card-containers">
-        <div class="containers-header">🐳 Containers <span class="containers-count">${proc.containers.length}</span></div>
-        <div class="container-badges">
-          ${running.map(c => `<span class="container-badge container-badge-running">${escapeHtml(c.service)}</span>`).join("")}
-          ${stopped.map(c => `<span class="container-badge container-badge-stopped">${escapeHtml(c.service)}</span>`).join("")}
-        </div>
-      </div>`;
+        const names = [
+          ...running.map(c => `<span class="container-running">${escapeHtml(c.service)}</span>`),
+          ...stopped.map(c => `<span class="container-stopped">${escapeHtml(c.service)}</span>`),
+        ].join(" ");
+        return `<div class="card-containers">🐳 <span class="containers-count">${running.length}/${proc.containers.length}</span> ${names}</div>`;
       })() : ""}
       <div class="card-footer">
         <button class="stats-toggle" aria-label="toggle stats">···</button>
