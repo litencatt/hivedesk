@@ -241,7 +241,7 @@ main {
 }
 
 .project-dir {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-muted);
   font-family: monospace;
   margin-bottom: 8px;
@@ -289,8 +289,6 @@ main {
   display: flex;
   align-items: center;
   margin-top: 8px;
-  padding-top: 6px;
-  border-top: 1px solid var(--border);
 }
 
 .stats-toggle {
@@ -371,7 +369,7 @@ main {
 .card-containers {
   display: flex;
   align-items: baseline;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-muted);
   margin-bottom: 6px;
   flex-wrap: wrap;
