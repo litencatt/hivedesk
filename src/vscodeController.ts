@@ -10,23 +10,28 @@ const CODE_CLI_CANDIDATES = [
   "/opt/homebrew/bin/code",
 ];
 
+// Cache CLI path after first lookup
+let cachedCodeCli: string | null | undefined = undefined;
+
 async function findCodeCli(): Promise<string | null> {
+  if (cachedCodeCli !== undefined) return cachedCodeCli;
   for (const p of CODE_CLI_CANDIDATES) {
     try {
       await execFileAsync("test", ["-x", p]);
+      cachedCodeCli = p;
       return p;
     } catch {
       // not found
     }
   }
-  // fallback: try `which code`
   try {
     const { stdout } = await execFileAsync("which", ["code"]);
     const p = stdout.trim();
-    if (p) return p;
+    if (p) { cachedCodeCli = p; return p; }
   } catch {
     // ignore
   }
+  cachedCodeCli = null;
   return null;
 }
 

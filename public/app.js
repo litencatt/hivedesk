@@ -58,9 +58,9 @@ function render(data) {
   // Attach click handlers
   grid.querySelectorAll(".card").forEach(card => {
     const pid = parseInt(card.dataset.pid);
-    card.addEventListener("click", () => focusWindow(pid));
+    card.addEventListener("click", () => focusWindow(pid, card));
     card.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") focusWindow(pid);
+      if (e.key === "Enter" || e.key === " ") focusWindow(pid, card);
     });
   });
 }
@@ -73,16 +73,22 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
-async function focusWindow(pid) {
-  try {
-    await fetch("/api/focus", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pid }),
-    });
-  } catch (err) {
-    console.error("Focus failed:", err);
+function focusWindow(pid, cardEl) {
+  // Visual feedback immediately — don't wait for server
+  if (cardEl) {
+    cardEl.style.opacity = "0.5";
+    cardEl.style.transform = "scale(0.98)";
+    setTimeout(() => {
+      cardEl.style.opacity = "";
+      cardEl.style.transform = "";
+    }, 300);
   }
+  // Fire-and-forget: don't await
+  fetch("/api/focus", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pid }),
+  }).catch(() => {});
 }
 
 connect();
