@@ -11,6 +11,7 @@ export interface ClaudeProcess {
   currentTask: string | null;
   openFiles: string[];
   gitBranch: string | null;
+  modelName: string | null;
   isMcpBridge: boolean;
 }
 
