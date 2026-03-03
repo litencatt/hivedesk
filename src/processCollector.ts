@@ -12,14 +12,14 @@ function encodeProjectDir(projectDir: string): string {
   return projectDir.replace(/\//g, "-");
 }
 
-async function readCurrentTaskFromSession(projectDir: string): Promise<string | null> {
+async function readSessionData(projectDir: string): Promise<{ currentTask: string | null; modelName: string | null }> {
   try {
     const encoded = encodeProjectDir(projectDir);
     const claudeProjectsDir = path.join(os.homedir(), ".claude", "projects", encoded);
 
     const files = await readdir(claudeProjectsDir);
     const jsonlFiles = files.filter(f => f.endsWith(".jsonl"));
-    if (jsonlFiles.length === 0) return null;
+    if (jsonlFiles.length === 0) return { currentTask: null, modelName: null };
 
     // Find most recently modified JSONL file
     const stats = await Promise.all(
@@ -31,32 +31,42 @@ async function readCurrentTaskFromSession(projectDir: string): Promise<string | 
     const content = await readFile(latestFile, "utf-8");
     const lines = content.trim().split("\n").filter(Boolean);
 
-    // Scan from end to find last user text message
+    let currentTask: string | null = null;
+    let modelName: string | null = null;
+
+    // Scan from end to find last user text message and model name
     for (let i = lines.length - 1; i >= 0; i--) {
       try {
         const entry = JSON.parse(lines[i]);
-        if (entry.type !== "user") continue;
-        const msgContent = entry.message?.content;
-        if (typeof msgContent === "string" && msgContent.trim()) {
-          return msgContent.slice(0, 120);
+
+        if (!modelName && entry.type === "assistant" && entry.message?.model) {
+          modelName = entry.message.model;
         }
-        if (Array.isArray(msgContent)) {
-          for (const item of msgContent) {
-            if (item?.type === "text" && item.text?.trim()) {
-              const text = item.text.trim();
-              // Skip system injections
-              if (text.startsWith("<") || text.startsWith("Caveat:")) continue;
-              return text.slice(0, 120);
+
+        if (!currentTask && entry.type === "user") {
+          const msgContent = entry.message?.content;
+          if (typeof msgContent === "string" && msgContent.trim()) {
+            currentTask = msgContent.slice(0, 120);
+          } else if (Array.isArray(msgContent)) {
+            for (const item of msgContent) {
+              if (item?.type === "text" && item.text?.trim()) {
+                const text = item.text.trim();
+                if (text.startsWith("<") || text.startsWith("Caveat:")) continue;
+                currentTask = text.slice(0, 120);
+                break;
+              }
             }
           }
         }
+
+        if (currentTask && modelName) break;
       } catch {
         // skip malformed lines
       }
     }
-    return null;
+    return { currentTask, modelName };
   } catch {
-    return null;
+    return { currentTask: null, modelName: null };
   }
 }
 
@@ -97,9 +107,8 @@ async function enrichProcess(pid: number): Promise<Partial<ClaudeProcess>> {
       .map(p => p.replace(projectDir + "/", ""))
       .filter((v, i, a) => a.indexOf(v) === i);
 
-    const currentTask = await readCurrentTaskFromSession(projectDir)
-      ?? openFiles[0]
-      ?? null;
+    const { currentTask: sessionTask, modelName } = await readSessionData(projectDir);
+    const currentTask = sessionTask ?? openFiles[0] ?? null;
 
     let gitBranch: string | null = null;
     try {
@@ -110,7 +119,7 @@ async function enrichProcess(pid: number): Promise<Partial<ClaudeProcess>> {
       gitBranch = branchOut.trim() || null;
     } catch { /* not a git repo or git not available */ }
 
-    return { projectDir, openFiles, currentTask, gitBranch };
+    return { projectDir, openFiles, currentTask, gitBranch, modelName };
   } catch {
     return { projectDir: "", openFiles: [], currentTask: null };
   }
@@ -175,12 +184,14 @@ export async function collectProcesses(): Promise<DashboardData> {
         currentTask: extra.currentTask ?? null,
         openFiles: extra.openFiles ?? [],
         gitBranch: extra.gitBranch ?? null,
+        modelName: extra.modelName ?? null,
         isMcpBridge,
       } satisfies ClaudeProcess;
     })
   );
 
   const visible = enriched.filter(p => !p.isMcpBridge);
+
   const totalWorking = visible.filter(p => p.status === "working").length;
   const totalIdle = visible.filter(p => p.status === "idle").length;
 

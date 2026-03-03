@@ -52,14 +52,21 @@ function render(data) {
     return;
   }
 
-  grid.innerHTML = data.processes.map(proc => `
+  const sorted = [...data.processes].sort((a, b) =>
+    (a.projectName ?? "").localeCompare(b.projectName ?? "")
+  );
+
+  grid.innerHTML = sorted.map(proc => `
     <div class="card ${proc.status}" data-pid="${proc.pid}" role="button" tabindex="0">
       <div class="card-header">
         <div class="project-name">${escapeHtml(proc.projectName)}</div>
         <div class="status-badge ${proc.status}">${proc.status}</div>
       </div>
       <div class="project-dir">${escapeHtml(shortenPath(proc.projectDir))}</div>
-      ${proc.gitBranch ? `<div class="git-branch">⎇ ${escapeHtml(proc.gitBranch)}</div>` : ""}
+      <div class="card-tags">
+        ${proc.gitBranch ? `<div class="git-branch">⎇ ${escapeHtml(proc.gitBranch)}</div>` : ""}
+        ${proc.modelName ? `<div class="model-name">${escapeHtml(proc.modelName.replace("claude-", ""))}</div>` : ""}
+      </div>
       <div class="card-meta">
         <div class="meta-item">CPU: <span>${proc.cpuPercent.toFixed(1)}%</span></div>
         <div class="meta-item">MEM: <span>${proc.memPercent.toFixed(1)}%</span></div>
@@ -67,6 +74,11 @@ function render(data) {
         <div class="meta-item">STAT: <span>${escapeHtml(proc.stat)}</span></div>
       </div>
       ${proc.currentTask ? `<div class="current-task">${escapeHtml(proc.currentTask)}</div>` : ""}
+      ${proc.openFiles && proc.openFiles.length > 0 ? `
+      <div class="open-files">
+        ${proc.openFiles.slice(0, 5).map(f => `<div class="open-file">${escapeHtml(f)}</div>`).join("")}
+        ${proc.openFiles.length > 5 ? `<div class="open-file open-file-more">+${proc.openFiles.length - 5} more</div>` : ""}
+      </div>` : ""}
       <div class="pid">PID ${proc.pid}</div>
     </div>
   `).join("");
