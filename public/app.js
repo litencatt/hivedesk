@@ -132,8 +132,8 @@ function render(data) {
           ${proc.gitBranch ? `<img src="git-branch.svg" class="git-branch-icon" alt="branch">` : ""}
           <div class="project-name">${escapeHtml(proc.gitBranch ?? proc.projectName)}</div>
         </div>
-        ${proc.prUrl ? `<a class="pr-link" href="${escapeHtml(proc.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">PR:${escapeHtml(proc.prUrl.split("/").pop() ?? "")}</a>` : ""}
       </div>
+      ${proc.prUrl ? `<a class="pr-link" href="${escapeHtml(proc.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">PR:${escapeHtml(proc.prUrl.split("/").pop() ?? "")}</a>` : ""}
       <div class="project-dir">${escapeHtml(shortenPath(proc.projectDir))}</div>
       ${proc.modelName ? `<div class="card-tags"><div class="model-name">${escapeHtml(proc.modelName.replace("claude-", ""))}</div></div>` : ""}
       ${proc.currentTask ? `<div class="current-task">${escapeHtml(proc.currentTask)}</div>` : ""}

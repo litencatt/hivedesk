@@ -257,15 +257,15 @@ main {
 }
 
 .pr-link {
+  display: inline-block;
   font-size: 10px;
   font-weight: 700;
   color: var(--green);
   text-decoration: underline;
-  align-self: flex-start;
   background: color-mix(in srgb, var(--green) 15%, transparent);
   padding: 1px 5px;
   border-radius: 3px;
-  margin-top: 2px;
+  margin-bottom: 6px;
 }
 
 .pr-link:hover {
