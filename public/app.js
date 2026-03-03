@@ -8,6 +8,10 @@ function connect() {
     render(data);
   });
 
+  es.addEventListener("reload", () => {
+    window.location.reload();
+  });
+
   es.onerror = () => {
     es.close();
     setTimeout(connect, 3000);
@@ -22,8 +26,18 @@ function formatElapsed(seconds) {
   return `${h}h ${m}m`;
 }
 
+function shortenPath(p) {
+  if (!p) return "";
+  const home = "/Users/";
+  if (p.startsWith(home)) {
+    const rest = p.slice(home.length);
+    const slash = rest.indexOf("/");
+    if (slash !== -1) return "~/" + rest.slice(slash + 1);
+  }
+  return p;
+}
+
 function render(data) {
-  // Update header stats
   document.getElementById("stat-working").textContent = `${data.totalWorking} working`;
   document.getElementById("stat-idle").textContent = `${data.totalIdle} idle`;
 
@@ -44,6 +58,8 @@ function render(data) {
         <div class="project-name">${escapeHtml(proc.projectName)}</div>
         <div class="status-badge ${proc.status}">${proc.status}</div>
       </div>
+      <div class="project-dir">${escapeHtml(shortenPath(proc.projectDir))}</div>
+      ${proc.gitBranch ? `<div class="git-branch">⎇ ${escapeHtml(proc.gitBranch)}</div>` : ""}
       <div class="card-meta">
         <div class="meta-item">CPU: <span>${proc.cpuPercent.toFixed(1)}%</span></div>
         <div class="meta-item">MEM: <span>${proc.memPercent.toFixed(1)}%</span></div>
@@ -55,7 +71,6 @@ function render(data) {
     </div>
   `).join("");
 
-  // Attach click handlers
   grid.querySelectorAll(".card").forEach(card => {
     const pid = parseInt(card.dataset.pid);
     card.addEventListener("click", () => focusWindow(pid, card));
@@ -74,7 +89,6 @@ function escapeHtml(str) {
 }
 
 function focusWindow(pid, cardEl) {
-  // Visual feedback immediately — don't wait for server
   if (cardEl) {
     cardEl.style.opacity = "0.5";
     cardEl.style.transform = "scale(0.98)";
@@ -83,7 +97,6 @@ function focusWindow(pid, cardEl) {
       cardEl.style.transform = "";
     }, 300);
   }
-  // Fire-and-forget: don't await
   fetch("/api/focus", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
