@@ -9,8 +9,13 @@ const APP_NAMES: Record<"vscode" | "cursor", string> = {
 };
 
 export async function focusVSCodeWindow(projectDir: string, app: "vscode" | "cursor" = "vscode"): Promise<boolean> {
+  const appName = APP_NAMES[app];
   try {
-    await execFileAsync("open", ["-a", APP_NAMES[app], projectDir]);
+    // Activate immediately via osascript, then open the folder
+    await Promise.all([
+      execFileAsync("osascript", ["-e", `tell application "${appName}" to activate`]),
+      execFileAsync("open", ["-a", appName, projectDir]),
+    ]);
     return true;
   } catch {
     return false;
