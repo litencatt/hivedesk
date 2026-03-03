@@ -2,6 +2,11 @@
   "name": "claudes-watch",
   "version": "1.0.0",
   "description": "Monitor Claude Code processes and focus VSCode windows",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/litencatt/claudes-watch"
+  },
   "scripts": {
     "build": "tsc",
     "start": "node dist/server.js",
