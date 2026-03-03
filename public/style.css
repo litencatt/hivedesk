@@ -172,10 +172,11 @@ main {
 
 .git-branch {
   display: inline-block;
-  font-size: 11px;
+  font-size: 12px;
   font-family: monospace;
-  padding: 1px 6px;
-  border-radius: 3px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent);
 }
@@ -212,18 +213,18 @@ main {
 
 .card-meta {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 10px;
 }
 
 .meta-item {
-  font-size: 12px;
+  font-size: 10px;
   color: var(--text-muted);
 }
 
 .meta-item span {
-  color: var(--text);
+  color: var(--text-muted);
   font-weight: 500;
 }
 
