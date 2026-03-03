@@ -1,8 +1,64 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
+import { readdir, readFile, stat } from "fs/promises";
+import path from "path";
+import os from "os";
 import { ClaudeProcess, DashboardData } from "./types.js";
 
 const execFileAsync = promisify(execFile);
+
+function encodeProjectDir(projectDir: string): string {
+  // ~/.claude/projects encodes paths by replacing / with -
+  return projectDir.replace(/\//g, "-");
+}
+
+async function readCurrentTaskFromSession(projectDir: string): Promise<string | null> {
+  try {
+    const encoded = encodeProjectDir(projectDir);
+    const claudeProjectsDir = path.join(os.homedir(), ".claude", "projects", encoded);
+
+    const files = await readdir(claudeProjectsDir);
+    const jsonlFiles = files.filter(f => f.endsWith(".jsonl"));
+    if (jsonlFiles.length === 0) return null;
+
+    // Find most recently modified JSONL file
+    const stats = await Promise.all(
+      jsonlFiles.map(async f => ({ f, mtime: (await stat(path.join(claudeProjectsDir, f))).mtime }))
+    );
+    stats.sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
+    const latestFile = path.join(claudeProjectsDir, stats[0].f);
+
+    const content = await readFile(latestFile, "utf-8");
+    const lines = content.trim().split("\n").filter(Boolean);
+
+    // Scan from end to find last user text message
+    for (let i = lines.length - 1; i >= 0; i--) {
+      try {
+        const entry = JSON.parse(lines[i]);
+        if (entry.type !== "user") continue;
+        const msgContent = entry.message?.content;
+        if (typeof msgContent === "string" && msgContent.trim()) {
+          return msgContent.slice(0, 120);
+        }
+        if (Array.isArray(msgContent)) {
+          for (const item of msgContent) {
+            if (item?.type === "text" && item.text?.trim()) {
+              const text = item.text.trim();
+              // Skip system injections
+              if (text.startsWith("<") || text.startsWith("Caveat:")) continue;
+              return text.slice(0, 120);
+            }
+          }
+        }
+      } catch {
+        // skip malformed lines
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 function parseElapsedSeconds(etime: string): number {
   // etime format: [[DD-]HH:]MM:SS
@@ -41,11 +97,20 @@ async function enrichProcess(pid: number): Promise<Partial<ClaudeProcess>> {
       .map(p => p.replace(projectDir + "/", ""))
       .filter((v, i, a) => a.indexOf(v) === i);
 
-    return {
-      projectDir,
-      openFiles,
-      currentTask: openFiles[0] ?? null,
-    };
+    const currentTask = await readCurrentTaskFromSession(projectDir)
+      ?? openFiles[0]
+      ?? null;
+
+    let gitBranch: string | null = null;
+    try {
+      const { stdout: branchOut } = await execFileAsync(
+        "git", ["-C", projectDir, "rev-parse", "--abbrev-ref", "HEAD"],
+        { timeout: 2000 }
+      );
+      gitBranch = branchOut.trim() || null;
+    } catch { /* not a git repo or git not available */ }
+
+    return { projectDir, openFiles, currentTask, gitBranch };
   } catch {
     return { projectDir: "", openFiles: [], currentTask: null };
   }
@@ -109,6 +174,7 @@ export async function collectProcesses(): Promise<DashboardData> {
         elapsedSeconds: parseElapsedSeconds(proc.elapsedTime),
         currentTask: extra.currentTask ?? null,
         openFiles: extra.openFiles ?? [],
+        gitBranch: extra.gitBranch ?? null,
         isMcpBridge,
       } satisfies ClaudeProcess;
     })
