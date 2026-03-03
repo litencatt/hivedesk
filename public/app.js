@@ -72,6 +72,7 @@ function render(data) {
       <div class="card-header">
         <div class="project-name">${escapeHtml(proc.projectName)}</div>
         <div class="card-header-badges">
+          <img src="claude.svg" class="claude-icon" alt="Claude">
           ${proc.editorApp ? `<div class="editor-badge ${proc.editorApp}"><img src="${proc.editorApp}.svg" class="editor-icon" alt="${proc.editorApp}"></div>` : ""}
           <div class="status-badge ${proc.status}">${proc.status}</div>
         </div>

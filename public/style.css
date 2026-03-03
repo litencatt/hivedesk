@@ -315,6 +315,13 @@ main {
   margin-left: 8px;
 }
 
+.claude-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  filter: invert(55%) sepia(40%) saturate(600%) hue-rotate(330deg);
+}
+
 .editor-icon {
   width: 16px;
   height: 16px;
