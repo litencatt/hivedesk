@@ -115,5 +115,5 @@ app.get("/events", (req: Request, res: Response) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`claudes-watch running at http://localhost:${PORT}`);
+  console.log(`hivedesk running at http://localhost:${PORT}`);
 });

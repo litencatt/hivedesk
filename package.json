@@ -1,11 +1,11 @@
 {
-  "name": "claudes-watch",
+  "name": "hivedesk",
   "version": "0.0.1",
-  "description": "Monitor Claude Code processes and focus VSCode windows",
+  "description": "Dashboard to monitor AI agent processes and focus IDE windows",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/litencatt/claudes-watch"
+    "url": "https://github.com/litencatt/hivedesk"
   },
   "scripts": {
     "build": "tsc",
