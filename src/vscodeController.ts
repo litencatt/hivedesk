@@ -3,73 +3,38 @@ import { promisify } from "util";
 
 const execFileAsync = promisify(execFile);
 
-// Candidates in priority order
-const CODE_CLI_CANDIDATES = [
-  "/usr/local/bin/code",
-  "/usr/bin/code",
-  "/opt/homebrew/bin/code",
-];
+const CLI_CANDIDATES: Record<"vscode" | "cursor", string[]> = {
+  vscode: ["/usr/local/bin/code", "/usr/bin/code", "/opt/homebrew/bin/code"],
+  cursor: ["/usr/local/bin/cursor", "/usr/bin/cursor", "/opt/homebrew/bin/cursor"],
+};
 
-// Cache CLI path after first lookup
-let cachedCodeCli: string | null | undefined = undefined;
+const cachedCli: Record<string, string | null | undefined> = {};
 
-async function findCodeCli(): Promise<string | null> {
-  if (cachedCodeCli !== undefined) return cachedCodeCli;
-  for (const p of CODE_CLI_CANDIDATES) {
+async function findCli(app: "vscode" | "cursor"): Promise<string | null> {
+  if (cachedCli[app] !== undefined) return cachedCli[app] ?? null;
+  for (const p of CLI_CANDIDATES[app]) {
     try {
       await execFileAsync("test", ["-x", p]);
-      cachedCodeCli = p;
+      cachedCli[app] = p;
       return p;
-    } catch {
-      // not found
-    }
+    } catch { /* not found */ }
   }
   try {
-    const { stdout } = await execFileAsync("which", ["code"]);
+    const { stdout } = await execFileAsync("which", [app === "vscode" ? "code" : "cursor"]);
     const p = stdout.trim();
-    if (p) { cachedCodeCli = p; return p; }
-  } catch {
-    // ignore
-  }
-  cachedCodeCli = null;
+    if (p) { cachedCli[app] = p; return p; }
+  } catch { /* ignore */ }
+  cachedCli[app] = null;
   return null;
 }
 
-export async function focusVSCodeWindow(projectDir: string): Promise<boolean> {
-  const codeCli = await findCodeCli();
-  if (codeCli) {
+export async function focusVSCodeWindow(projectDir: string, app: "vscode" | "cursor" = "vscode"): Promise<boolean> {
+  const cli = await findCli(app);
+  if (cli) {
     try {
-      // --reuse-window focuses the existing window that has this folder open
-      await execFileAsync(codeCli, ["--reuse-window", projectDir]);
+      await execFileAsync(cli, ["--reuse-window", projectDir]);
       return true;
-    } catch {
-      // fall through to AppleScript
-    }
+    } catch { /* fall through */ }
   }
-
-  // AppleScript fallback: VSCode's process name in System Events is "Electron"
-  const script = `
-    tell application "System Events"
-      repeat with procName in {"Electron", "Cursor", "Code"}
-        if exists process procName then
-          tell process procName
-            repeat with w in (every window)
-              if title of w contains " — " then
-                perform action "AXRaise" of w
-                exit repeat
-              end if
-            end repeat
-          end tell
-          tell application procName to activate
-          return "ok"
-        end if
-      end repeat
-    end tell
-  `;
-  try {
-    await execFileAsync("osascript", ["-e", script]);
-    return true;
-  } catch {
-    return false;
-  }
+  return false;
 }

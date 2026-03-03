@@ -79,6 +79,22 @@ app.post("/api/focus", async (req: Request, res: Response) => {
   }
 });
 
+// Focus editor window (no Claude process)
+app.post("/api/focus-editor", async (req: Request, res: Response) => {
+  const { projectDir, app: editorApp } = req.body as { projectDir?: string; app?: string };
+  if (!projectDir) {
+    res.status(400).json({ error: "projectDir is required" });
+    return;
+  }
+  try {
+    const success = await focusVSCodeWindow(projectDir, (editorApp === "cursor" ? "cursor" : "vscode"));
+    res.json({ success });
+  } catch (err) {
+    console.error("Failed to focus editor window:", err);
+    res.status(500).json({ error: "Failed to focus editor window" });
+  }
+});
+
 // SSE stream
 app.get("/events", (req: Request, res: Response) => {
   res.setHeader("Content-Type", "text/event-stream");
