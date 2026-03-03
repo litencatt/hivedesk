@@ -1,67 +1,68 @@
 # hivedesk
 
-複数の AI エージェント（Claude Code）を並行して走らせているとき、「どのプロジェクトで何が動いているか」を一目で把握し、**カードをクリックするだけで対応する VSCode / Cursor ウィンドウに即座にフォーカス**できるダッシュボードです。
+A dashboard for developers running multiple AI agents (Claude Code) in parallel. See what's happening across all your projects at a glance, and **click any card to instantly focus the corresponding VSCode / Cursor window**.
 
-複数プロジェクトを渡り歩く開発スタイルに特化した、macOS 向けのエージェント管理ツールです。
+Built for developers who juggle multiple projects simultaneously. macOS only.
 
-## 機能
+[日本語版 README はこちら](./README.ja.md)
 
-- **ワンクリック IDE フォーカス**: カードをクリックするだけで対応する VSCode / Cursor ウィンドウが即座にアクティブになる（osascript による瞬時切り替え）
-- **エディタウィンドウ一覧**: Claude プロセスがない VSCode / Cursor ウィンドウも表示し、クリックでフォーカス可能
-- **リアルタイムプロセス監視**: 実行中の Claude Code プロセスをカード形式で表示
-- **詳細情報表示**: 各カードに以下の情報を表示
-  - プロジェクト名とディレクトリパス
-  - Git ブランチ名と PR リンク
-  - 使用中のモデル（Claude Opus、Sonnet など）
-  - 現在処理中のタスク
-  - 開いているファイル一覧
-  - CPU / メモリ使用率（トグル可能）
-  - 実行時間と PID
-- **リポジトリごとのグループ化**: git worktree を認識し、同じリポジトリのプロセスをグループ化表示
-- **エディタウィンドウ表示**: Claude プロセスがない VSCode / Cursor ウィンドウも表示
-- **ホットリロード**: `public/` ディレクトリ内のファイル変更を自動検出して画面をリロード
-- **ダーク/ライトテーマ**: システム設定に応じて自動切り替え
-- **SSE ベースのリアルタイム更新**: 2 秒ごとにデータを更新
+## Features
 
-## 前提条件
+- **One-click IDE focus**: Click a card to instantly activate the corresponding VSCode / Cursor window (instant switching via osascript)
+- **Editor window listing**: Shows VSCode / Cursor windows even without an active Claude process — click to focus
+- **Real-time process monitoring**: Displays running Claude Code processes as cards in a grid
+- **Rich card info**:
+  - Project name and directory path
+  - Git branch and PR link
+  - Active model (Claude Opus, Sonnet, etc.)
+  - Current task description
+  - Open files list
+  - CPU / memory usage (toggleable)
+  - Uptime and PID
+- **Repository grouping**: Groups worktrees from the same repository together
+- **Hot reload**: Auto-reloads the UI when files in `public/` change
+- **Dark / light theme**: Follows your system preference
+- **SSE-based live updates**: Refreshes data every 2 seconds
 
-- **macOS** （`ps`、`osascript`、`open -a` コマンドを使用）
+## Prerequisites
+
+- **macOS** (uses `ps`, `osascript`, `open -a`)
 - **Node.js 18+**
-- **GitHub CLI** (`gh`) - PR リンク取得用
-- **Git** - ブランチ情報取得用
+- **GitHub CLI** (`gh`) — for PR link detection
+- **Git** — for branch info
 
-## インストール
+## Installation
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/litencatt/hivedesk.git
 cd hivedesk
 npm install
 ```
 
-## 使用方法
+## Usage
 
-### 開発モード（ファイル変更で自動リロード）
+### Development mode (auto-reload on file change)
 
 ```bash
 npm run dev
 ```
 
-ブラウザで http://localhost:3000 を開きます。
+Open http://localhost:3000 in your browser.
 
-### 本番モード
+### Production mode
 
 ```bash
 npm run build
 npm start
 ```
 
-## API リファレンス
+## API Reference
 
 ### `GET /api/processes`
 
-実行中のプロセスデータのスナップショットを取得します。
+Returns a snapshot of all running Claude Code processes.
 
-**レスポンス例:**
+**Response example:**
 ```json
 {
   "processes": [
@@ -89,92 +90,86 @@ npm start
 
 ### `POST /api/focus`
 
-Claude プロセスに対応するエディタウィンドウにフォーカスします。
+Focus the editor window associated with a Claude process.
 
-**リクエスト:**
+**Request:**
 ```json
-{
-  "pid": 12345
-}
+{ "pid": 12345 }
 ```
 
 ### `POST /api/focus-editor`
 
-Claude プロセスがないエディタウィンドウにフォーカスします。
+Focus an editor window not associated with a Claude process.
 
-**リクエスト:**
+**Request:**
 ```json
-{
-  "projectDir": "/Users/user/projects/my-project",
-  "app": "vscode"
-}
+{ "projectDir": "/Users/user/projects/my-project", "app": "vscode" }
 ```
 
 ### `GET /events`
 
-Server-Sent Events (SSE) ストリーム。2 秒ごとにプロセスデータを配信します。
+SSE stream — delivers process data every 2 seconds.
 
-## プロジェクト構成
+## Project Structure
 
 ```
 hivedesk/
 ├── src/
-│   ├── server.ts              # Express サーバー、SSE、REST API
-│   ├── processCollector.ts    # Claude プロセス情報の収集
-│   ├── vscodeController.ts    # VSCode/Cursor フォーカス制御
-│   └── types.ts               # TypeScript 型定義
+│   ├── server.ts              # Express server, SSE, REST API
+│   ├── processCollector.ts    # Claude process info collection
+│   ├── vscodeController.ts    # VSCode/Cursor focus control
+│   └── types.ts               # TypeScript types
 ├── public/
-│   ├── index.html             # ダッシュボード HTML
-│   ├── app.js                 # フロントエンド（SSE クライアント、レンダリング）
-│   ├── style.css              # ダーク/ライトテーマ対応スタイル
-│   └── [icons].svg            # Claude、VSCode、Cursor のアイコン
+│   ├── index.html             # Dashboard HTML
+│   ├── app.js                 # Frontend (SSE client, rendering)
+│   ├── style.css              # Dark/light theme styles
+│   └── [icons].svg            # Claude, VSCode, Cursor icons
 ├── package.json
 └── tsconfig.json
 ```
 
-## 技術スタック
+## Tech Stack
 
-- **バックエンド**: Node.js + TypeScript + Express
-- **フロントエンド**: Vanilla JavaScript (SSE クライアント)
-- **通信**: Server-Sent Events (リアルタイム更新)
-- **プロセス情報取得**: `ps`、`lsof`、`git`、`gh` CLI
-- **ウィンドウ制御**: macOS `osascript` + `open -a`
+- **Backend**: Node.js + TypeScript + Express
+- **Frontend**: Vanilla JavaScript (SSE client)
+- **Communication**: Server-Sent Events (real-time updates)
+- **Process info**: `ps`, `lsof`, `git`, `gh` CLI
+- **Window control**: macOS `osascript` + `open -a`
 
-## 開発スクリプト
+## Scripts
 
 ```bash
-npm run build      # TypeScript をコンパイル
-npm run dev        # 開発モード（tsx watch）
-npm start          # 本番モード（コンパイル後）
-npm run test       # テスト実行
-npm run test:watch # テスト監視モード
+npm run build      # Compile TypeScript
+npm run dev        # Development mode (tsx watch)
+npm start          # Production mode (after build)
+npm run test       # Run tests
+npm run test:watch # Watch mode tests
 ```
 
-## トラブルシューティング
+## Troubleshooting
 
-### "No Claude processes found" と表示される
+### "No Claude processes found"
 
-Claude Code が起動していることを確認してください。
-
+Make sure Claude Code is running:
 ```bash
 ps aux | grep claude
 ```
 
-### PR リンクが表示されない
+### PR link not showing
 
-- GitHub CLI (`gh`) がインストールされていることを確認してください
-- リポジトリが GitHub に接続されていることを確認してください
-- 現在のブランチが `main` または `master` 以外であることを確認してください
+- Ensure GitHub CLI (`gh`) is installed and authenticated
+- Ensure the repository is connected to GitHub
+- The current branch must not be `main` or `master`
 
-### VSCode / Cursor のフォーカスが効かない
+### VSCode / Cursor focus not working
 
-- エディタアプリケーションが起動していることを確認してください
-- macOS の権限設定を確認してください（アクセシビリティ）
+- Make sure the editor application is running
+- Check macOS accessibility permissions
 
-## ライセンス
+## License
 
 MIT
 
-## 貢献
+## Contributing
 
-Issue や Pull Request は大歓迎です。
+Issues and pull requests are welcome!
