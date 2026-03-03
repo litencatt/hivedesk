@@ -1,6 +1,6 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { readFile } from "fs/promises";
+import { readdir, readFile, stat } from "fs/promises";
 import path from "path";
 import os from "os";
 import { EditorWindow } from "../types.js";
@@ -21,44 +21,63 @@ const EDITOR_CONFIGS: Array<{ app: EditorWindow["app"]; globalStoragePath: strin
   },
 ];
 
-const EDITOR_APP_NAMES: Record<EditorWindow["app"], string> = {
-  vscode: "Code",
-  cursor: "Cursor",
+const EDITOR_BUNDLE_IDS: Record<EditorWindow["app"], string> = {
+  vscode: "com.microsoft.VSCode",
+  cursor: "com.todesktop.230313mzl4w4u92",
 };
 
-export async function getFocusedEditorDir(knownWindows: EditorWindow[]): Promise<string | null> {
+const WORKSPACE_STORAGE_PATHS: Record<EditorWindow["app"], string> = {
+  vscode: path.join(os.homedir(), "Library/Application Support/Code/User/workspaceStorage"),
+  cursor: path.join(os.homedir(), "Library/Application Support/Cursor/User/workspaceStorage"),
+};
+
+async function getFocusedEditorApp(): Promise<EditorWindow["app"] | null> {
   try {
     const script = `
       tell application "System Events"
-        set frontApp to name of first process whose frontmost is true
-        set winTitle to ""
-        try
-          set winTitle to name of front window of first process whose frontmost is true
-        end try
-        return frontApp & "|" & winTitle
+        set frontBundle to bundle identifier of first process whose frontmost is true
+        return frontBundle
       end tell
     `;
     const { stdout } = await execFileAsync("osascript", ["-e", script], { timeout: 2000 });
-    const [appName, windowTitle] = stdout.trim().split("|");
+    const bundleId = stdout.trim();
+    const entry = (Object.entries(EDITOR_BUNDLE_IDS) as [EditorWindow["app"], string][])
+      .find(([, id]) => id === bundleId);
+    return entry?.[0] ?? null;
+  } catch {
+    return null;
+  }
+}
 
-    const matchedApp = (Object.entries(EDITOR_APP_NAMES) as [EditorWindow["app"], string][])
-      .find(([, name]) => name === appName)?.[0];
-    if (!matchedApp || !windowTitle) return null;
+async function getMostRecentWorkspaceDir(app: EditorWindow["app"]): Promise<string | null> {
+  try {
+    const storageRoot = WORKSPACE_STORAGE_PATHS[app];
+    const entries = await readdir(storageRoot);
+    const stats = await Promise.all(
+      entries.map(async e => ({ name: e, mtime: (await stat(path.join(storageRoot, e))).mtime }))
+    );
+    stats.sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
 
-    // Window title format: "filename — project-name — App" or "project-name — App"
-    const segments = windowTitle.split(" \u2014 ");
-    const candidates = segments.slice(0, -1); // remove trailing app name segment
-
-    for (const candidate of candidates.reverse()) {
-      const match = knownWindows.find(
-        w => w.app === matchedApp && (w.projectName === candidate.trim() || w.projectDir.endsWith("/" + candidate.trim()))
-      );
-      if (match) return match.projectDir;
+    for (const { name } of stats) {
+      const wsJson = path.join(storageRoot, name, "workspace.json");
+      try {
+        const content = await readFile(wsJson, "utf-8");
+        const { folder } = JSON.parse(content);
+        if (folder?.startsWith("file://")) {
+          return decodeURIComponent(folder.replace("file://", "")).replace(/\/$/, "");
+        }
+      } catch { /* skip */ }
     }
     return null;
   } catch {
     return null;
   }
+}
+
+export async function getFocusedEditorDir(_knownWindows: EditorWindow[]): Promise<string | null> {
+  const app = await getFocusedEditorApp();
+  if (!app) return null;
+  return getMostRecentWorkspaceDir(app);
 }
 
 export async function collectEditorWindows(): Promise<EditorWindow[]> {
