@@ -140,8 +140,7 @@ function render(data) {
           <img src="claude.svg" class="claude-icon" alt="Claude">
         </div>
       </div>
-      ${proc.prUrl ? `<a class="pr-link" href="${escapeHtml(proc.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">PR:${escapeHtml(proc.prUrl.split("/").pop() ?? "")}</a>` : ""}
-      <div class="project-dir">${escapeHtml(shortenPath(proc.projectDir))}</div>
+      ${proc.prUrl ? `<a class="pr-link" href="${escapeHtml(proc.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">PR:${escapeHtml(proc.prUrl.split("/").pop() ?? "")}</a>` : `<div class="project-dir">${escapeHtml(shortenPath(proc.projectDir))}</div>`}
       ${proc.modelName ? `<div class="card-tags"><div class="model-name">${escapeHtml(proc.modelName.replace("claude-", ""))}</div></div>` : ""}
       ${proc.currentTask ? `<div class="current-task">${escapeHtml(proc.currentTask)}</div>` : ""}
       ${proc.openFiles && proc.openFiles.length > 0 ? `
