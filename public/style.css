@@ -295,18 +295,6 @@ main {
   gap: 16px;
 }
 
-#editor-section {
-  margin-top: 32px;
-}
-
-.section-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-muted);
-  margin-bottom: 12px;
-  letter-spacing: 0.3px;
-}
-
 .editor-card {
   opacity: 0.6;
 }
