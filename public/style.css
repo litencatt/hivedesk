@@ -162,6 +162,13 @@ main {
   margin-left: 8px;
 }
 
+.project-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 .project-name {
   font-size: 15px;
   font-weight: 600;
@@ -203,7 +210,8 @@ main {
   font-size: 10px;
   font-weight: 700;
   color: var(--green);
-  text-decoration: none;
+  text-decoration: underline;
+  flex-shrink: 0;
   background: color-mix(in srgb, var(--green) 15%, transparent);
   padding: 1px 5px;
   border-radius: 3px;

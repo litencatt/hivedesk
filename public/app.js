@@ -75,7 +75,10 @@ function render(data) {
   const cardHtml = (proc) => `
     <div class="card ${proc.status}" data-pid="${proc.pid}" role="button" tabindex="0">
       <div class="card-header">
-        <div class="project-name">${escapeHtml(proc.projectName)}</div>
+        <div class="project-name-row">
+          <div class="project-name">${escapeHtml(proc.projectName)}</div>
+          ${proc.prUrl ? `<a class="pr-link" href="${escapeHtml(proc.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">PR</a>` : ""}
+        </div>
         <div class="card-header-badges">
           ${proc.editorApp ? `<div class="editor-badge ${proc.editorApp}"><img src="${proc.editorApp}.svg" class="editor-icon" alt="${proc.editorApp}"></div>` : ""}
           <img src="claude.svg" class="claude-icon" alt="Claude">
@@ -84,7 +87,7 @@ function render(data) {
       </div>
       <div class="project-dir">${escapeHtml(shortenPath(proc.projectDir))}</div>
       <div class="card-tags">
-        ${proc.gitBranch ? `<div class="git-branch">${proc.prUrl ? `<a class="pr-link" href="${escapeHtml(proc.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">PR</a>` : ""}⎇ ${escapeHtml(proc.gitBranch)}</div>` : ""}
+        ${proc.gitBranch ? `<div class="git-branch">⎇ ${escapeHtml(proc.gitBranch)}</div>` : ""}
         ${proc.modelName ? `<div class="model-name">${escapeHtml(proc.modelName.replace("claude-", ""))}</div>` : ""}
       </div>
       ${proc.currentTask ? `<div class="current-task">${escapeHtml(proc.currentTask)}</div>` : ""}
