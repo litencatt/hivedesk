@@ -129,20 +129,17 @@ function render(data) {
     <div class="card ${proc.status}" data-pid="${proc.pid}" role="button" tabindex="0">
       <div class="card-header">
         <div class="project-name-row">
-          <div class="project-name">${escapeHtml(proc.projectName)}</div>
-          ${proc.prUrl ? `<a class="pr-link" href="${escapeHtml(proc.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">PR</a>` : ""}
+          ${proc.gitBranch ? `<img src="git-branch.svg" class="git-branch-icon" alt="branch">` : ""}
+          <div class="project-name">${escapeHtml(proc.gitBranch ?? proc.projectName)}</div>
         </div>
-        <div class="card-header-badges">
+        <div class="card-header-icons">
           ${proc.editorApp ? `<div class="editor-badge ${proc.editorApp}"><img src="${proc.editorApp}.svg" class="editor-icon" alt="${proc.editorApp}"></div>` : ""}
           <img src="claude.svg" class="claude-icon" alt="Claude">
-          <div class="status-badge ${proc.status}">${proc.status}</div>
         </div>
       </div>
+      ${proc.prUrl ? `<a class="pr-link" href="${escapeHtml(proc.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">PR:${escapeHtml(proc.prUrl.split("/").pop() ?? "")}</a>` : ""}
       <div class="project-dir">${escapeHtml(shortenPath(proc.projectDir))}</div>
-      <div class="card-tags">
-        ${proc.gitBranch ? `<div class="git-branch"><img src="git-branch.svg" class="git-branch-icon" alt="branch"> ${escapeHtml(proc.gitBranch)}</div>` : ""}
-        ${proc.modelName ? `<div class="model-name">${escapeHtml(proc.modelName.replace("claude-", ""))}</div>` : ""}
-      </div>
+      ${proc.modelName ? `<div class="card-tags"><div class="model-name">${escapeHtml(proc.modelName.replace("claude-", ""))}</div></div>` : ""}
       ${proc.currentTask ? `<div class="current-task">${escapeHtml(proc.currentTask)}</div>` : ""}
       ${proc.openFiles && proc.openFiles.length > 0 ? `
       <div class="open-files">
