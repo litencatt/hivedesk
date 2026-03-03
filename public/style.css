@@ -182,7 +182,9 @@ main {
 }
 
 .git-branch {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 12px;
   font-family: monospace;
   font-weight: 600;
@@ -190,6 +192,20 @@ main {
   border-radius: 4px;
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent);
+}
+
+.pr-link {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--green);
+  text-decoration: none;
+  background: color-mix(in srgb, var(--green) 15%, transparent);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.pr-link:hover {
+  background: color-mix(in srgb, var(--green) 25%, transparent);
 }
 
 .model-name {
@@ -221,11 +237,37 @@ main {
   border: 1px solid var(--border);
 }
 
-.card-meta {
+.card-footer {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.stats-toggle {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  opacity: 0.5;
+}
+
+.stats-toggle:hover {
+  opacity: 1;
+}
+
+.card-meta {
+  display: none;
   gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 10px;
+  margin-top: 8px;
+}
+
+.card-meta.open {
+  display: flex;
 }
 
 .meta-item {

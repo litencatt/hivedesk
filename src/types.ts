@@ -13,6 +13,7 @@ export interface ClaudeProcess {
   gitBranch: string | null;
   gitCommonDir: string | null;
   modelName: string | null;
+  prUrl: string | null;
   editorApp: "vscode" | "cursor" | null;
   isMcpBridge: boolean;
 }
