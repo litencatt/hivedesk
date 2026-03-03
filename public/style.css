@@ -139,7 +139,6 @@ main {
 }
 
 .card:hover {
-  border-color: var(--accent);
   transform: translateY(-1px);
   opacity: 1;
 }
