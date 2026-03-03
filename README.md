@@ -12,6 +12,8 @@ Built for developers who juggle multiple projects simultaneously. macOS only.
 - Developers who use **VSCode or Cursor** as their primary IDE, with **multiple instances open simultaneously**, each running an AI agent in its own terminal
 - **macOS only** (current)
 
+![hivedesk screenshot](./docs/screenshot.png)
+
 ## Features
 
 - **One-click IDE focus**: Click a card to instantly activate the corresponding VSCode / Cursor window (instant switching via osascript)
