@@ -66,6 +66,7 @@ function render(data) {
       <div class="card-tags">
         ${proc.gitBranch ? `<div class="git-branch">⎇ ${escapeHtml(proc.gitBranch)}</div>` : ""}
         ${proc.modelName ? `<div class="model-name">${escapeHtml(proc.modelName.replace("claude-", ""))}</div>` : ""}
+        ${proc.editorApp ? `<div class="editor-badge ${proc.editorApp}">${proc.editorApp === "vscode" ? "VSCode" : "Cursor"}</div>` : ""}
       </div>
       <div class="card-meta">
         <div class="meta-item">CPU: <span>${proc.cpuPercent.toFixed(1)}%</span></div>
@@ -82,6 +83,27 @@ function render(data) {
       <div class="pid">PID ${proc.pid}</div>
     </div>
   `).join("");
+
+  // Editor windows without Claude
+  const editorGrid = document.getElementById("editor-grid");
+  if (editorGrid) {
+    if (data.editorWindows && data.editorWindows.length > 0) {
+      const sortedEditors = [...data.editorWindows].sort((a, b) =>
+        (a.projectName ?? "").localeCompare(b.projectName ?? "")
+      );
+      editorGrid.innerHTML = sortedEditors.map(w => `
+        <div class="card editor-card" data-dir="${escapeHtml(w.projectDir)}" role="button" tabindex="0">
+          <div class="card-header">
+            <div class="project-name">${escapeHtml(w.projectName)}</div>
+            <div class="editor-badge ${w.app}">${w.app === "vscode" ? "VSCode" : "Cursor"}</div>
+          </div>
+          <div class="project-dir">${escapeHtml(shortenPath(w.projectDir))}</div>
+        </div>
+      `).join("");
+    } else {
+      editorGrid.innerHTML = "";
+    }
+  }
 
   grid.querySelectorAll(".card").forEach(card => {
     const pid = parseInt(card.dataset.pid);

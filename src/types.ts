@@ -12,11 +12,19 @@ export interface ClaudeProcess {
   openFiles: string[];
   gitBranch: string | null;
   modelName: string | null;
+  editorApp: "vscode" | "cursor" | null;
   isMcpBridge: boolean;
+}
+
+export interface EditorWindow {
+  app: "vscode" | "cursor";
+  projectDir: string;
+  projectName: string;
 }
 
 export interface DashboardData {
   processes: ClaudeProcess[];
+  editorWindows: EditorWindow[];
   collectedAt: string;
   totalWorking: number;
   totalIdle: number;

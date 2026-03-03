@@ -3,7 +3,7 @@ import { promisify } from "util";
 import { readdir, readFile, stat } from "fs/promises";
 import path from "path";
 import os from "os";
-import { ClaudeProcess, DashboardData } from "./types.js";
+import { ClaudeProcess, DashboardData, EditorWindow } from "./types.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -39,7 +39,7 @@ async function readSessionData(projectDir: string): Promise<{ currentTask: strin
       try {
         const entry = JSON.parse(lines[i]);
 
-        if (!modelName && entry.type === "assistant" && entry.message?.model) {
+        if (!modelName && entry.message?.model) {
           modelName = entry.message.model;
         }
 
@@ -125,6 +125,83 @@ async function enrichProcess(pid: number): Promise<Partial<ClaudeProcess>> {
   }
 }
 
+const EDITOR_BACKUP_DIRS: Array<{ app: EditorWindow["app"]; backupsDir: string; processPattern: RegExp }> = [
+  {
+    app: "vscode",
+    backupsDir: path.join(os.homedir(), "Library/Application Support/Code/Backups"),
+    processPattern: /Visual Studio Code/,
+  },
+  {
+    app: "cursor",
+    backupsDir: path.join(os.homedir(), "Library/Application Support/Cursor/Backups"),
+    processPattern: /[Cc]ursor/,
+  },
+];
+
+async function isEditorRunning(pattern: RegExp): Promise<boolean> {
+  try {
+    const { stdout } = await execFileAsync("ps", ["-eo", "command"]);
+    return stdout.split("\n").some(line => pattern.test(line));
+  } catch {
+    return false;
+  }
+}
+
+async function collectEditorWindows(): Promise<EditorWindow[]> {
+  const results: EditorWindow[] = [];
+
+  for (const { app, backupsDir, processPattern } of EDITOR_BACKUP_DIRS) {
+    if (!await isEditorRunning(processPattern)) continue;
+
+    let windowDirs: string[];
+    try {
+      windowDirs = await readdir(backupsDir);
+    } catch {
+      continue;
+    }
+
+    for (const windowId of windowDirs) {
+      const fileBackupDir = path.join(backupsDir, windowId, "file");
+      let backupFiles: string[];
+      try {
+        backupFiles = await readdir(fileBackupDir);
+      } catch {
+        continue;
+      }
+      if (backupFiles.length === 0) continue;
+
+      try {
+        const content = await readFile(path.join(fileBackupDir, backupFiles[0]), "utf-8");
+        const firstLine = content.split("\n")[0].trim();
+        // First line: "file:///path/to/file.ts {metadata}"
+        const match = firstLine.match(/^file:\/\/\/(.+?)\s*\{/);
+        if (!match) continue;
+        const filePath = "/" + decodeURIComponent(match[1]);
+
+        // Find git root from the file path
+        let projectDir: string | null = null;
+        try {
+          const { stdout } = await execFileAsync(
+            "git", ["-C", path.dirname(filePath), "rev-parse", "--show-toplevel"],
+            { timeout: 2000 }
+          );
+          projectDir = stdout.trim() || null;
+        } catch {
+          projectDir = path.dirname(filePath);
+        }
+        if (!projectDir) continue;
+
+        const projectName = projectDir.split("/").pop() ?? projectDir;
+        results.push({ app, projectDir, projectName });
+      } catch {
+        // skip
+      }
+    }
+  }
+
+  return results;
+}
+
 const MCP_BRIDGE_PATHS = ["/mcp", "mcp-server", "mcp_server", ".mcp"];
 
 export async function collectProcesses(): Promise<DashboardData> {
@@ -185,18 +262,38 @@ export async function collectProcesses(): Promise<DashboardData> {
         openFiles: extra.openFiles ?? [],
         gitBranch: extra.gitBranch ?? null,
         modelName: extra.modelName ?? null,
+        editorApp: null,
         isMcpBridge,
       } satisfies ClaudeProcess;
     })
   );
 
-  const visible = enriched.filter(p => !p.isMcpBridge);
+  const nonBridge = enriched.filter(p => !p.isMcpBridge);
+
+  const allEditorWindows = await collectEditorWindows();
+  const editorDirMap = new Map(allEditorWindows.map(w => [w.projectDir, w.app]));
+
+  const visible = nonBridge.map(p => ({
+    ...p,
+    editorApp: editorDirMap.get(p.projectDir) ?? null,
+  }));
 
   const totalWorking = visible.filter(p => p.status === "working").length;
   const totalIdle = visible.filter(p => p.status === "idle").length;
 
+  // Editor windows without a Claude process
+  const claudeDirs = new Set(visible.map(p => p.projectDir));
+  const seenEditorDirs = new Set<string>();
+  const editorWindows = allEditorWindows.filter(w => {
+    if (claudeDirs.has(w.projectDir)) return false;
+    if (seenEditorDirs.has(w.projectDir)) return false;
+    seenEditorDirs.add(w.projectDir);
+    return true;
+  });
+
   return {
     processes: visible,
+    editorWindows,
     collectedAt: new Date().toISOString(),
     totalWorking,
     totalIdle,
