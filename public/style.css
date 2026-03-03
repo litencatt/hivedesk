@@ -119,8 +119,6 @@ h1 {
   display: flex;
   align-items: center;
   gap: 10px;
-  position: relative;
-  top: 2px;
 }
 
 .usage-tokens {
@@ -133,28 +131,22 @@ h1 {
   font-size: 13px;
   font-weight: 600;
   font-family: monospace;
-  padding: 3px 8px;
-  border-radius: 5px;
 }
 
 .usage-5h {
   color: #58a6ff;
-  background: color-mix(in srgb, #58a6ff 12%, transparent);
 }
 
 .usage-wk {
   color: #a78bfa;
-  background: color-mix(in srgb, #a78bfa 12%, transparent);
 }
 
 .usage-warning {
   color: #d29922 !important;
-  background: color-mix(in srgb, #d29922 12%, transparent) !important;
 }
 
 .usage-critical {
   color: #f85149 !important;
-  background: color-mix(in srgb, #f85149 12%, transparent) !important;
 }
 
 main {
