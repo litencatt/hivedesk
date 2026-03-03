@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { encodeProjectDir, parseElapsedSeconds, parseStorageFolders } from "./processCollector.js";
+import { encodeProjectDir, parseElapsedSeconds, parseStorageFolders } from "./utils/processUtils.js";
 
 describe("encodeProjectDir", () => {
   it("replaces slashes with dashes", () => {

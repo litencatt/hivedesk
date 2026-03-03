@@ -1,142 +1,15 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { access, readdir, readFile, stat } from "fs/promises";
-import path from "path";
-import os from "os";
-import { ClaudeProcess, DashboardData, DockerContainer, EditorWindow, UsageData } from "./types.js";
+import { ClaudeProcess, DashboardData, UsageData } from "./types.js";
+import { parseElapsedSeconds } from "./utils/processUtils.js";
+import { readSessionData, collectRateLimitUsage } from "./collectors/sessionCollector.js";
+import { getGitInfo } from "./collectors/gitCollector.js";
+import { collectDockerContainers } from "./collectors/dockerCollector.js";
+import { collectEditorWindows } from "./collectors/editorCollector.js";
 
 const execFileAsync = promisify(execFile);
 
-export function encodeProjectDir(projectDir: string): string {
-  // ~/.claude/projects encodes paths by replacing / with -
-  return projectDir.replace(/\//g, "-");
-}
-
-export function parseElapsedSeconds(etime: string): number {
-  // etime format: [[DD-]HH:]MM:SS
-  const parts = etime.trim().split(/[-:]/);
-  if (parts.length === 2) {
-    return parseInt(parts[0]) * 60 + parseInt(parts[1]);
-  } else if (parts.length === 3) {
-    return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
-  } else if (parts.length === 4) {
-    return parseInt(parts[0]) * 86400 + parseInt(parts[1]) * 3600 + parseInt(parts[2]) * 60 + parseInt(parts[3]);
-  }
-  return 0;
-}
-
-export function parseStorageFolders(
-  storage: { backupWorkspaces?: { folders?: Array<{ folderUri: string }> } },
-  app: EditorWindow["app"]
-): EditorWindow[] {
-  const folders = storage.backupWorkspaces?.folders ?? [];
-  const results: EditorWindow[] = [];
-  for (const { folderUri } of folders) {
-    if (!folderUri.startsWith("file://")) continue;
-    const projectDir = decodeURIComponent(folderUri.replace("file://", "")).replace(/\/$/, "");
-    if (!projectDir) continue;
-    const projectName = projectDir.split("/").pop() ?? projectDir;
-    results.push({ app, projectDir, projectName });
-  }
-  return results;
-}
-
-async function readSessionData(projectDir: string): Promise<{ currentTask: string | null; modelName: string | null; inputTokens: number; outputTokens: number }> {
-  try {
-    const encoded = encodeProjectDir(projectDir);
-    const claudeProjectsDir = path.join(os.homedir(), ".claude", "projects", encoded);
-
-    const files = await readdir(claudeProjectsDir);
-    const jsonlFiles = files.filter(f => f.endsWith(".jsonl"));
-    if (jsonlFiles.length === 0) return { currentTask: null, modelName: null, inputTokens: 0, outputTokens: 0 };
-
-    // Find most recently modified JSONL file
-    const stats = await Promise.all(
-      jsonlFiles.map(async f => ({ f, mtime: (await stat(path.join(claudeProjectsDir, f))).mtime }))
-    );
-    stats.sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
-    const latestFile = path.join(claudeProjectsDir, stats[0].f);
-
-    const content = await readFile(latestFile, "utf-8");
-    const lines = content.trim().split("\n").filter(Boolean);
-
-    let currentTask: string | null = null;
-    let modelName: string | null = null;
-    let inputTokens = 0;
-    let outputTokens = 0;
-
-    // First pass: scan all lines to accumulate tokens
-    for (let i = 0; i < lines.length; i++) {
-      try {
-        const entry = JSON.parse(lines[i]);
-
-        if (entry.type === "assistant" && entry.message?.usage) {
-          inputTokens += entry.message.usage.input_tokens ?? 0;
-          outputTokens += entry.message.usage.output_tokens ?? 0;
-        }
-      } catch {
-        // skip malformed lines
-      }
-    }
-
-    // Second pass: scan from end to find last user text message and model name
-    for (let i = lines.length - 1; i >= 0; i--) {
-      try {
-        const entry = JSON.parse(lines[i]);
-
-        if (!modelName && entry.message?.model) {
-          modelName = entry.message.model;
-        }
-
-        if (!currentTask && entry.type === "user") {
-          const msgContent = entry.message?.content;
-          if (typeof msgContent === "string" && msgContent.trim()) {
-            currentTask = msgContent.slice(0, 120);
-          } else if (Array.isArray(msgContent)) {
-            for (const item of msgContent) {
-              if (item?.type === "text" && item.text?.trim()) {
-                const text = item.text.trim();
-                if (text.startsWith("<") || text.startsWith("Caveat:")) continue;
-                currentTask = text.slice(0, 120);
-                break;
-              }
-            }
-          }
-        }
-
-        if (currentTask && modelName) break;
-      } catch {
-        // skip malformed lines
-      }
-    }
-    return { currentTask, modelName, inputTokens, outputTokens };
-  } catch {
-    return { currentTask: null, modelName: null, inputTokens: 0, outputTokens: 0 };
-  }
-}
-
-async function collectRateLimitUsage(): Promise<{
-  fiveHourPercent: number | null;
-  weeklyPercent: number | null;
-  fiveHourResetsAt: string | null;
-  weeklyResetsAt: string | null;
-}> {
-  try {
-    const usageCachePath = path.join(os.homedir(), ".claude/plugins/oh-my-claudecode/.usage-cache.json");
-    const content = await readFile(usageCachePath, "utf-8");
-    const cache = JSON.parse(content);
-    if (cache.error || !cache.data) return { fiveHourPercent: null, weeklyPercent: null, fiveHourResetsAt: null, weeklyResetsAt: null };
-    const { fiveHourPercent, weeklyPercent, fiveHourResetsAt, weeklyResetsAt } = cache.data;
-    return {
-      fiveHourPercent: fiveHourPercent ?? null,
-      weeklyPercent: weeklyPercent ?? null,
-      fiveHourResetsAt: fiveHourResetsAt ?? null,
-      weeklyResetsAt: weeklyResetsAt ?? null,
-    };
-  } catch {
-    return { fiveHourPercent: null, weeklyPercent: null, fiveHourResetsAt: null, weeklyResetsAt: null };
-  }
-}
+const MCP_BRIDGE_PATHS = ["/mcp", "mcp-server", "mcp_server", ".mcp"];
 
 async function enrichProcess(pid: number): Promise<Partial<ClaudeProcess> & { inputTokens: number; outputTokens: number }> {
   try {
@@ -161,144 +34,18 @@ async function enrichProcess(pid: number): Promise<Partial<ClaudeProcess> & { in
       .map(p => p.replace(projectDir + "/", ""))
       .filter((v, i, a) => a.indexOf(v) === i);
 
-    const [{ currentTask: sessionTask, modelName, inputTokens, outputTokens }, containers] = await Promise.all([
+    const [{ currentTask: sessionTask, modelName, inputTokens, outputTokens }, containers, { gitBranch, gitCommonDir, prUrl }] = await Promise.all([
       readSessionData(projectDir),
       collectDockerContainers(projectDir),
+      getGitInfo(projectDir),
     ]);
     const currentTask = sessionTask ?? openFiles[0] ?? null;
-
-    let gitBranch: string | null = null;
-    let gitCommonDir: string | null = null;
-    let prUrl: string | null = null;
-    try {
-      const [{ stdout: branchOut }, { stdout: commonDirOut }] = await Promise.all([
-        execFileAsync("git", ["-C", projectDir, "rev-parse", "--abbrev-ref", "HEAD"], { timeout: 2000 }),
-        execFileAsync("git", ["-C", projectDir, "rev-parse", "--git-common-dir"], { timeout: 2000 }),
-      ]);
-      gitBranch = branchOut.trim() || null;
-      const rawCommonDir = commonDirOut.trim();
-      // --git-common-dir returns relative path like ".git" for the main worktree
-      gitCommonDir = rawCommonDir.startsWith("/")
-        ? rawCommonDir
-        : path.resolve(projectDir, rawCommonDir);
-
-      if (gitBranch && gitBranch !== "HEAD" && gitBranch !== "main" && gitBranch !== "master") {
-        try {
-          const { stdout: prOut } = await execFileAsync(
-            "gh", ["pr", "view", "--json", "url", "-q", ".url"],
-            { cwd: projectDir, timeout: 3000 }
-          );
-          prUrl = prOut.trim() || null;
-        } catch { /* no PR or gh not available */ }
-      }
-    } catch { /* not a git repo or git not available */ }
 
     return { projectDir, openFiles, currentTask, gitBranch, gitCommonDir, modelName, prUrl, containers, inputTokens, outputTokens };
   } catch {
     return { projectDir: "", openFiles: [], currentTask: null, inputTokens: 0, outputTokens: 0 };
   }
 }
-
-const EDITOR_CONFIGS: Array<{ app: EditorWindow["app"]; globalStoragePath: string; processPattern: RegExp }> = [
-  {
-    app: "vscode",
-    globalStoragePath: path.join(os.homedir(), "Library/Application Support/Code/User/globalStorage/storage.json"),
-    processPattern: /Visual Studio Code\.app\/Contents\/MacOS\//,
-  },
-  {
-    app: "cursor",
-    globalStoragePath: path.join(os.homedir(), "Library/Application Support/Cursor/User/globalStorage/storage.json"),
-    processPattern: /Cursor\.app\/Contents\/MacOS\/Cursor/,
-  },
-];
-
-async function collectEditorWindows(): Promise<EditorWindow[]> {
-  const results: EditorWindow[] = [];
-
-  // Single ps call for all editor checks
-  let psOutput = "";
-  try {
-    const { stdout } = await execFileAsync("ps", ["-eo", "command"]);
-    psOutput = stdout;
-  } catch {
-    return results;
-  }
-  const psLines = psOutput.split("\n");
-
-  for (const { app, globalStoragePath, processPattern } of EDITOR_CONFIGS) {
-    if (!psLines.some(line => processPattern.test(line))) continue;
-
-    try {
-      const content = await readFile(globalStoragePath, "utf-8");
-      const storage = JSON.parse(content) as {
-        backupWorkspaces?: { folders?: Array<{ folderUri: string }> };
-      };
-      results.push(...parseStorageFolders(storage, app));
-    } catch {
-      continue;
-    }
-  }
-
-  return results;
-}
-
-const COMPOSE_FILE_NAMES = [
-  "docker-compose.yml", "docker-compose.yaml",
-  "compose.yml", "compose.yaml",
-];
-
-async function findComposeFile(dir: string, depth: number): Promise<string | null> {
-  for (const name of COMPOSE_FILE_NAMES) {
-    const candidate = path.join(dir, name);
-    try {
-      await access(candidate);
-      return candidate;
-    } catch { /* not found */ }
-  }
-  if (depth <= 0) return null;
-  try {
-    const entries = await readdir(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      if (entry.name.startsWith(".") || entry.name === "node_modules") continue;
-      const found = await findComposeFile(path.join(dir, entry.name), depth - 1);
-      if (found) return found;
-    }
-  } catch { /* skip unreadable dirs */ }
-  return null;
-}
-
-async function collectDockerContainers(projectDir: string): Promise<DockerContainer[]> {
-  if (!projectDir) return [];
-
-  const composeFile = await findComposeFile(projectDir, 2);
-  if (!composeFile) return [];
-
-  try {
-    const { stdout } = await execFileAsync(
-      "docker", ["compose", "-f", composeFile, "ps", "--format", "json"],
-      { timeout: 3000 }
-    );
-    const lines = stdout.trim().split("\n").filter(Boolean);
-    const containers: DockerContainer[] = [];
-    for (const line of lines) {
-      try {
-        const obj = JSON.parse(line);
-        containers.push({
-          service: obj.Service ?? "",
-          name: obj.Name ?? "",
-          state: (obj.State ?? "").toLowerCase(),
-          status: obj.Status ?? "",
-        });
-      } catch { /* skip malformed */ }
-    }
-    return containers;
-  } catch {
-    return [];
-  }
-}
-
-const MCP_BRIDGE_PATHS = ["/mcp", "mcp-server", "mcp_server", ".mcp"];
 
 export async function collectProcesses(): Promise<DashboardData> {
   const { stdout } = await execFileAsync("ps", ["-eo", "pid,ppid,pcpu,pmem,etime,stat,comm"]);
