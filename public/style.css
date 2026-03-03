@@ -202,11 +202,9 @@ main {
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
-  height: 52px;
   margin-bottom: 8px;
   padding-bottom: 7px;
   border-bottom: 1px solid var(--border);
-  overflow: hidden;
 }
 
 .card-header-icons {
@@ -254,14 +252,12 @@ main {
 }
 
 .project-name {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   font-family: monospace;
   color: var(--accent);
-  white-space: nowrap;
-  overflow: hidden;
+  word-break: break-word;
   min-width: 0;
-  flex-shrink: 1;
 }
 
 .project-dir {

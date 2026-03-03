@@ -206,7 +206,6 @@ function render(data) {
     : "";
 
   grid.innerHTML = claudeHtml + editorOnlyHtml;
-  fitBranchNames(grid);
 
   grid.querySelectorAll(".card[data-pid]").forEach(card => {
     const pid = parseInt(card.dataset.pid);
@@ -231,18 +230,6 @@ function render(data) {
     card.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") focusEditorWindow(dir, app, card);
     });
-  });
-}
-
-function fitBranchNames(container) {
-  container.querySelectorAll(".project-name").forEach(el => {
-    el.style.fontSize = "";
-    let size = 13;
-    const minSize = 8;
-    while (el.scrollWidth > el.offsetWidth + 1 && size > minSize) {
-      size -= 0.5;
-      el.style.fontSize = size + "px";
-    }
   });
 }
 
