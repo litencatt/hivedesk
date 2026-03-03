@@ -19,7 +19,7 @@ function demoify(data) {
   const processes = data.processes.map((proc, i) => {
     const repo = DEMO_REPOS[i % DEMO_REPOS.length];
     const gcDir = proc.gitCommonDir
-      ? `/Users/demo/projects/${DEMO_REPOS[Math.floor(i / 2) % DEMO_REPOS.length]}/.git`
+      ? `/Users/demo/projects/${DEMO_REPOS[Math.floor(i / 3) % DEMO_REPOS.length]}/.git`
       : null;
     const demoContainers = proc.containers.slice(0, proc.containers.length).map((c, j) => ({
       ...c,
