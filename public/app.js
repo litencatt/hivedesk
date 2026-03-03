@@ -97,7 +97,7 @@ function render(data) {
     </div>
   `;
 
-  grid.innerHTML = groups.map(({ repoName, procs }) => {
+  const claudeHtml = groups.map(({ repoName, procs }) => {
     const isGroup = procs.length > 1;
     if (isGroup) {
       return `
@@ -109,40 +109,36 @@ function render(data) {
     return cardHtml(procs[0]);
   }).join("");
 
-  // Editor windows without Claude
-  const editorGrid = document.getElementById("editor-grid");
-  if (editorGrid) {
-    if (data.editorWindows && data.editorWindows.length > 0) {
-      const sortedEditors = [...data.editorWindows].sort((a, b) =>
-        (a.projectName ?? "").localeCompare(b.projectName ?? "")
-      );
-      editorGrid.innerHTML = sortedEditors.map(w => `
-        <div class="card editor-card" data-dir="${escapeHtml(w.projectDir)}" data-app="${escapeHtml(w.app)}" role="button" tabindex="0">
-          <div class="card-header">
-            <div class="project-name">${escapeHtml(w.projectName)}</div>
-            <div class="editor-badge ${w.app}">${w.app === "vscode" ? "VSCode" : "Cursor"}</div>
+  const editorOnlyHtml = (data.editorWindows && data.editorWindows.length > 0)
+    ? [...data.editorWindows]
+        .sort((a, b) => (a.projectName ?? "").localeCompare(b.projectName ?? ""))
+        .map(w => `
+          <div class="card editor-card" data-dir="${escapeHtml(w.projectDir)}" data-app="${escapeHtml(w.app)}" role="button" tabindex="0">
+            <div class="card-header">
+              <div class="project-name">${escapeHtml(w.projectName)}</div>
+              <div class="editor-badge ${w.app}">${w.app === "vscode" ? "VSCode" : "Cursor"}</div>
+            </div>
+            <div class="project-dir">${escapeHtml(shortenPath(w.projectDir))}</div>
           </div>
-          <div class="project-dir">${escapeHtml(shortenPath(w.projectDir))}</div>
-        </div>
-      `).join("");
-      editorGrid.querySelectorAll(".editor-card").forEach(card => {
-        const dir = card.dataset.dir;
-        const app = card.dataset.app;
-        card.addEventListener("click", () => focusEditorWindow(dir, app, card));
-        card.addEventListener("keydown", (e) => {
-          if (e.key === "Enter" || e.key === " ") focusEditorWindow(dir, app, card);
-        });
-      });
-    } else {
-      editorGrid.innerHTML = "";
-    }
-  }
+        `).join("")
+    : "";
 
-  grid.querySelectorAll(".card").forEach(card => {
+  grid.innerHTML = claudeHtml + editorOnlyHtml;
+
+  grid.querySelectorAll(".card[data-pid]").forEach(card => {
     const pid = parseInt(card.dataset.pid);
     card.addEventListener("click", () => focusWindow(pid, card));
     card.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") focusWindow(pid, card);
+    });
+  });
+
+  grid.querySelectorAll(".editor-card").forEach(card => {
+    const dir = card.dataset.dir;
+    const app = card.dataset.app;
+    card.addEventListener("click", () => focusEditorWindow(dir, app, card));
+    card.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") focusEditorWindow(dir, app, card);
     });
   });
 }
