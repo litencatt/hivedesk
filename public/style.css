@@ -121,30 +121,37 @@ h1 {
 }
 
 .usage-tokens {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
   font-family: monospace;
 }
 
 .usage-limit {
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 600;
   font-family: monospace;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 3px 8px;
+  border-radius: 5px;
 }
 
-.usage-ok {
-  color: var(--text-muted);
+.usage-5h {
+  color: #58a6ff;
+  background: color-mix(in srgb, #58a6ff 12%, transparent);
+}
+
+.usage-wk {
+  color: #a78bfa;
+  background: color-mix(in srgb, #a78bfa 12%, transparent);
 }
 
 .usage-warning {
-  color: #d29922;
-  background: color-mix(in srgb, #d29922 12%, transparent);
+  color: #d29922 !important;
+  background: color-mix(in srgb, #d29922 12%, transparent) !important;
 }
 
 .usage-critical {
-  color: #f85149;
-  background: color-mix(in srgb, #f85149 12%, transparent);
+  color: #f85149 !important;
+  background: color-mix(in srgb, #f85149 12%, transparent) !important;
 }
 
 main {

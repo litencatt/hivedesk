@@ -34,6 +34,16 @@ function formatTimeUntil(isoString) {
   return m > 0 ? `${h}h${m}m` : `${h}h`;
 }
 
+function formatJST(isoString) {
+  if (!isoString) return null;
+  return new Date(isoString).toLocaleTimeString("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
 function formatTokens(n) {
   if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
   if (n >= 1000) return `${(n / 1000).toFixed(0)}k`;
@@ -76,13 +86,14 @@ function render(data) {
     }
     if (u.fiveHourPercent !== null) {
       const t = formatTimeUntil(u.fiveHourResetsAt);
-      const cls = u.fiveHourPercent >= 90 ? "usage-critical" : u.fiveHourPercent >= 70 ? "usage-warning" : "usage-ok";
-      parts.push(`<span class="usage-limit ${cls}">5h:${u.fiveHourPercent}%${t ? `(${t})` : ""}</span>`);
+      const jst = formatJST(u.fiveHourResetsAt);
+      const cls = u.fiveHourPercent >= 90 ? "usage-critical" : u.fiveHourPercent >= 70 ? "usage-warning" : "";
+      parts.push(`<span class="usage-limit usage-5h ${cls}">5h:${u.fiveHourPercent}%${t ? ` (${t}` : ""}${jst ? ` 🕐${jst}` : ""}${t ? `)` : ""}</span>`);
     }
     if (u.weeklyPercent !== null) {
       const t = formatTimeUntil(u.weeklyResetsAt);
-      const cls = u.weeklyPercent >= 90 ? "usage-critical" : u.weeklyPercent >= 70 ? "usage-warning" : "usage-ok";
-      parts.push(`<span class="usage-limit ${cls}">wk:${u.weeklyPercent}%${t ? `(${t})` : ""}</span>`);
+      const cls = u.weeklyPercent >= 90 ? "usage-critical" : u.weeklyPercent >= 70 ? "usage-warning" : "";
+      parts.push(`<span class="usage-limit usage-wk ${cls}">wk:${u.weeklyPercent}%${t ? `(${t})` : ""}</span>`);
     }
     usageEl.innerHTML = parts.join("");
   }
