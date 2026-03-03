@@ -1,11 +1,59 @@
 let es = null;
+let demoMode = false;
+let lastData = null;
+
+const DEMO_REPOS = ["project-alpha", "my-webapp", "api-service", "data-pipeline", "frontend-app", "auth-service"];
+const DEMO_BRANCHES = ["feat/user-auth", "fix/payment-bug", "docs/api-update", "refactor/db-layer", "feat/search-feature", "fix/login-issue", "feat/dashboard-v2", "chore/deps-update"];
+const DEMO_TASKS = [
+  "Implementing user authentication flow",
+  "Writing unit tests for payment module",
+  "Fixing database connection timeout",
+  "Refactoring API response layer",
+  null,
+];
+const DEMO_FILES = ["src/index.ts", "src/auth/handler.ts", "tests/payment.test.ts", "README.md", "src/utils/logger.ts"];
+const DEMO_CONTAINERS = ["api", "db", "redis", "worker", "nginx", "cache", "queue"];
+const DEMO_PR_BASE = 10000;
+
+function demoify(data) {
+  const processes = data.processes.map((proc, i) => {
+    const repo = DEMO_REPOS[i % DEMO_REPOS.length];
+    const gcDir = proc.gitCommonDir
+      ? `/Users/demo/projects/${DEMO_REPOS[Math.floor(i / 3) % DEMO_REPOS.length]}/.git`
+      : null;
+    const demoContainers = proc.containers.slice(0, proc.containers.length).map((c, j) => ({
+      ...c,
+      service: DEMO_CONTAINERS[j % DEMO_CONTAINERS.length],
+      name: `${DEMO_CONTAINERS[j % DEMO_CONTAINERS.length]}-1`,
+    }));
+    return {
+      ...proc,
+      projectName: repo,
+      projectDir: `/Users/demo/projects/${gcDir ? DEMO_REPOS[Math.floor(i / 2) % DEMO_REPOS.length] : repo}`,
+      gitBranch: proc.gitBranch ? DEMO_BRANCHES[i % DEMO_BRANCHES.length] : null,
+      gitCommonDir: gcDir,
+      prUrl: proc.prUrl ? `https://github.com/demo-org/${repo}/pull/${DEMO_PR_BASE + i * 111}` : null,
+      currentTask: proc.currentTask ? DEMO_TASKS[i % DEMO_TASKS.length] : null,
+      openFiles: proc.openFiles.map((_, j) => DEMO_FILES[j % DEMO_FILES.length]),
+      modelName: proc.modelName,
+      containers: demoContainers,
+    };
+  });
+
+  const editorWindows = data.editorWindows.map((w, i) => {
+    const repo = DEMO_REPOS[(i + 3) % DEMO_REPOS.length];
+    return { ...w, projectName: repo, projectDir: `/Users/demo/projects/${repo}` };
+  });
+
+  return { ...data, processes, editorWindows };
+}
 
 function connect() {
   es = new EventSource("/events");
 
   es.addEventListener("processes", (e) => {
-    const data = JSON.parse(e.data);
-    render(data);
+    lastData = JSON.parse(e.data);
+    render(lastData);
   });
 
   es.addEventListener("reload", () => {
@@ -69,7 +117,8 @@ function shortenPath(p) {
   return p;
 }
 
-function render(data) {
+function render(rawData) {
+  const data = demoMode ? demoify(rawData) : rawData;
   document.getElementById("stat-working").textContent = `${data.totalWorking} working`;
   document.getElementById("stat-idle").textContent = `${data.totalIdle} idle`;
 
@@ -274,3 +323,9 @@ function focusWindow(pid, cardEl) {
 }
 
 connect();
+
+document.getElementById("demo-toggle").addEventListener("click", function () {
+  demoMode = !demoMode;
+  this.classList.toggle("active", demoMode);
+  if (lastData) render(lastData);
+});

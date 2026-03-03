@@ -14,6 +14,8 @@
 
 ![hivedesk スクリーンショット](./docs/screenshot.png)
 
+![hivedesk デモ](./docs/demo.png)
+
 ## 機能
 
 - **ワンクリック IDE フォーカス**: カードをクリックするだけで対応する VSCode / Cursor ウィンドウが即座にアクティブになる（osascript による瞬時切り替え）

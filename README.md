@@ -14,6 +14,8 @@ Built for developers who juggle multiple projects simultaneously. macOS only.
 
 ![hivedesk screenshot](./docs/screenshot.png)
 
+![hivedesk demo](./docs/demo.png)
+
 ## Features
 
 - **One-click IDE focus**: Click a card to instantly activate the corresponding VSCode / Cursor window (instant switching via osascript)
