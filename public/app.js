@@ -72,7 +72,7 @@ function render(data) {
       <div class="card-header">
         <div class="project-name">${escapeHtml(proc.projectName)}</div>
         <div class="card-header-badges">
-          ${proc.editorApp ? `<div class="editor-badge ${proc.editorApp}">${proc.editorApp === "vscode" ? "VSCode" : "Cursor"}</div>` : ""}
+          ${proc.editorApp ? `<div class="editor-badge ${proc.editorApp}"><img src="${proc.editorApp}.svg" class="editor-icon" alt="${proc.editorApp}"></div>` : ""}
           <div class="status-badge ${proc.status}">${proc.status}</div>
         </div>
       </div>
@@ -116,7 +116,7 @@ function render(data) {
           <div class="card editor-card" data-dir="${escapeHtml(w.projectDir)}" data-app="${escapeHtml(w.app)}" role="button" tabindex="0">
             <div class="card-header">
               <div class="project-name">${escapeHtml(w.projectName)}</div>
-              <div class="editor-badge ${w.app}">${w.app === "vscode" ? "VSCode" : "Cursor"}</div>
+              <div class="editor-badge ${w.app}"><img src="${w.app}.svg" class="editor-icon" alt="${w.app}"></div>
             </div>
             <div class="project-dir">${escapeHtml(shortenPath(w.projectDir))}</div>
           </div>
