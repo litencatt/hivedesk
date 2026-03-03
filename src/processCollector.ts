@@ -139,7 +139,7 @@ const EDITOR_WORKSPACE_DIRS: Array<{ app: EditorWindow["app"]; workspaceStorageD
 ];
 
 // Window is considered "open" if workspace.json was modified within this duration
-const EDITOR_WINDOW_OPEN_MS = 8 * 60 * 60 * 1000; // 8 hours
+const EDITOR_WINDOW_OPEN_MS = 30 * 60 * 60 * 1000; // 30 hours
 
 async function isEditorRunning(pattern: RegExp): Promise<boolean> {
   try {

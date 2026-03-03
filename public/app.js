@@ -60,13 +60,15 @@ function render(data) {
     <div class="card ${proc.status}" data-pid="${proc.pid}" role="button" tabindex="0">
       <div class="card-header">
         <div class="project-name">${escapeHtml(proc.projectName)}</div>
-        <div class="status-badge ${proc.status}">${proc.status}</div>
+        <div class="card-header-badges">
+          ${proc.editorApp ? `<div class="editor-badge ${proc.editorApp}">${proc.editorApp === "vscode" ? "VSCode" : "Cursor"}</div>` : ""}
+          <div class="status-badge ${proc.status}">${proc.status}</div>
+        </div>
       </div>
       <div class="project-dir">${escapeHtml(shortenPath(proc.projectDir))}</div>
       <div class="card-tags">
         ${proc.gitBranch ? `<div class="git-branch">⎇ ${escapeHtml(proc.gitBranch)}</div>` : ""}
         ${proc.modelName ? `<div class="model-name">${escapeHtml(proc.modelName.replace("claude-", ""))}</div>` : ""}
-        ${proc.editorApp ? `<div class="editor-badge ${proc.editorApp}">${proc.editorApp === "vscode" ? "VSCode" : "Cursor"}</div>` : ""}
       </div>
       <div class="card-meta">
         <div class="meta-item">CPU: <span>${proc.cpuPercent.toFixed(1)}%</span></div>
