@@ -175,7 +175,7 @@ function focusEditorWindow(dir, app, cardEl) {
     setTimeout(() => {
       cardEl.style.opacity = "";
       cardEl.style.transform = "";
-    }, 300);
+    }, 100);
   }
   fetch("/api/focus-editor", {
     method: "POST",
@@ -191,7 +191,7 @@ function focusWindow(pid, cardEl) {
     setTimeout(() => {
       cardEl.style.opacity = "";
       cardEl.style.transform = "";
-    }, 300);
+    }, 100);
   }
   fetch("/api/focus", {
     method: "POST",

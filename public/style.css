@@ -100,6 +100,12 @@ h1 {
   color: var(--text-muted);
 }
 
+.hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.4;
+}
+
 main {
   padding: 24px;
 }
@@ -123,7 +129,7 @@ main {
   border-radius: 8px;
   padding: 16px;
   cursor: pointer;
-  transition: border-color 0.15s, opacity 0.15s, transform 0.1s;
+  transition: border-color 0.1s, opacity 0.08s, transform 0.06s;
   opacity: 0.75;
 }
 
@@ -133,7 +139,6 @@ main {
 }
 
 .card:hover {
-  border-color: var(--accent);
   transform: translateY(-1px);
   opacity: 1;
 }

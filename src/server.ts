@@ -64,19 +64,15 @@ app.post("/api/focus", async (req: Request, res: Response) => {
     res.status(400).json({ error: "pid is required" });
     return;
   }
-  try {
-    const data = await getProcessData();
-    const proc = data.processes.find(p => p.pid === pid);
-    if (!proc) {
-      res.status(404).json({ error: "Process not found" });
-      return;
-    }
-    const success = await focusVSCodeWindow(proc.projectDir);
-    res.json({ success });
-  } catch (err) {
-    console.error("Failed to focus window:", err);
-    res.status(500).json({ error: "Failed to focus window" });
+  const data = await getProcessData();
+  const proc = data.processes.find(p => p.pid === pid);
+  if (!proc) {
+    res.status(404).json({ error: "Process not found" });
+    return;
   }
+  // Respond immediately, focus in background
+  res.json({ success: true });
+  focusVSCodeWindow(proc.projectDir, proc.editorApp ?? "vscode").catch(() => {});
 });
 
 // Focus editor window (no Claude process)
@@ -86,13 +82,9 @@ app.post("/api/focus-editor", async (req: Request, res: Response) => {
     res.status(400).json({ error: "projectDir is required" });
     return;
   }
-  try {
-    const success = await focusVSCodeWindow(projectDir, (editorApp === "cursor" ? "cursor" : "vscode"));
-    res.json({ success });
-  } catch (err) {
-    console.error("Failed to focus editor window:", err);
-    res.status(500).json({ error: "Failed to focus editor window" });
-  }
+  // Respond immediately, focus in background
+  res.json({ success: true });
+  focusVSCodeWindow(projectDir, editorApp === "cursor" ? "cursor" : "vscode").catch(() => {});
 });
 
 // SSE stream
