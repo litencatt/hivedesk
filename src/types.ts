@@ -11,6 +11,7 @@ export interface ClaudeProcess {
   currentTask: string | null;
   openFiles: string[];
   gitBranch: string | null;
+  gitCommonDir: string | null;
   modelName: string | null;
   editorApp: "vscode" | "cursor" | null;
   isMcpBridge: boolean;

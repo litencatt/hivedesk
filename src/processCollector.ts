@@ -111,15 +111,21 @@ async function enrichProcess(pid: number): Promise<Partial<ClaudeProcess>> {
     const currentTask = sessionTask ?? openFiles[0] ?? null;
 
     let gitBranch: string | null = null;
+    let gitCommonDir: string | null = null;
     try {
-      const { stdout: branchOut } = await execFileAsync(
-        "git", ["-C", projectDir, "rev-parse", "--abbrev-ref", "HEAD"],
-        { timeout: 2000 }
-      );
+      const [{ stdout: branchOut }, { stdout: commonDirOut }] = await Promise.all([
+        execFileAsync("git", ["-C", projectDir, "rev-parse", "--abbrev-ref", "HEAD"], { timeout: 2000 }),
+        execFileAsync("git", ["-C", projectDir, "rev-parse", "--git-common-dir"], { timeout: 2000 }),
+      ]);
       gitBranch = branchOut.trim() || null;
+      const rawCommonDir = commonDirOut.trim();
+      // --git-common-dir returns relative path like ".git" for the main worktree
+      gitCommonDir = rawCommonDir.startsWith("/")
+        ? rawCommonDir
+        : path.resolve(projectDir, rawCommonDir);
     } catch { /* not a git repo or git not available */ }
 
-    return { projectDir, openFiles, currentTask, gitBranch, modelName };
+    return { projectDir, openFiles, currentTask, gitBranch, gitCommonDir, modelName };
   } catch {
     return { projectDir: "", openFiles: [], currentTask: null };
   }
@@ -247,6 +253,7 @@ export async function collectProcesses(): Promise<DashboardData> {
         currentTask: extra.currentTask ?? null,
         openFiles: extra.openFiles ?? [],
         gitBranch: extra.gitBranch ?? null,
+        gitCommonDir: extra.gitCommonDir ?? null,
         modelName: extra.modelName ?? null,
         editorApp: null,
         isMcpBridge,

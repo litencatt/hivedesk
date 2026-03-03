@@ -52,11 +52,22 @@ function render(data) {
     return;
   }
 
-  const sorted = [...data.processes].sort((a, b) =>
-    (a.projectName ?? "").localeCompare(b.projectName ?? "")
-  );
+  // Group by gitCommonDir, fallback to projectDir
+  const groupMap = new Map();
+  for (const proc of data.processes) {
+    const key = proc.gitCommonDir ?? proc.projectDir ?? String(proc.pid);
+    if (!groupMap.has(key)) groupMap.set(key, []);
+    groupMap.get(key).push(proc);
+  }
+  const groups = [...groupMap.entries()]
+    .map(([key, procs]) => ({
+      key,
+      repoName: key.replace(/\/\.git$/, "").split("/").pop() ?? key,
+      procs: procs.sort((a, b) => (a.projectName ?? "").localeCompare(b.projectName ?? "")),
+    }))
+    .sort((a, b) => a.repoName.localeCompare(b.repoName));
 
-  grid.innerHTML = sorted.map(proc => `
+  const cardHtml = (proc) => `
     <div class="card ${proc.status}" data-pid="${proc.pid}" role="button" tabindex="0">
       <div class="card-header">
         <div class="project-name">${escapeHtml(proc.projectName)}</div>
@@ -84,7 +95,19 @@ function render(data) {
       </div>` : ""}
       <div class="pid">PID ${proc.pid}</div>
     </div>
-  `).join("");
+  `;
+
+  grid.innerHTML = groups.map(({ repoName, procs }) => {
+    const isGroup = procs.length > 1;
+    if (isGroup) {
+      return `
+        <div class="repo-group">
+          <div class="repo-group-header">${escapeHtml(repoName)}</div>
+          <div class="repo-group-cards">${procs.map(cardHtml).join("")}</div>
+        </div>`;
+    }
+    return cardHtml(procs[0]);
+  }).join("");
 
   // Editor windows without Claude
   const editorGrid = document.getElementById("editor-grid");
