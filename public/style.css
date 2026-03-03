@@ -58,7 +58,10 @@ header {
 }
 
 .logo {
-  font-size: 24px;
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  filter: invert(55%) sepia(40%) saturate(600%) hue-rotate(330deg);
 }
 
 h1 {
@@ -277,16 +280,22 @@ main {
   font-family: monospace;
 }
 
-#editor-section {
-  margin-top: 32px;
+.repo-group {
+  grid-column: 1 / -1;
 }
 
-.section-title {
-  font-size: 13px;
+.repo-group-header {
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-muted);
-  margin-bottom: 12px;
-  letter-spacing: 0.3px;
+  margin-bottom: 8px;
+  padding-left: 2px;
+}
+
+.repo-group-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
 }
 
 .editor-card {
@@ -298,20 +307,35 @@ main {
 }
 
 .editor-badge {
-  padding: 2px 8px;
+  display: flex;
+  align-items: center;
+  padding: 2px 4px;
   border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
   flex-shrink: 0;
   margin-left: 8px;
 }
 
+.claude-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  filter: invert(55%) sepia(40%) saturate(600%) hue-rotate(330deg);
+}
+
+.editor-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
+.editor-badge.cursor .editor-icon {
+  filter: invert(60%) sepia(60%) saturate(500%) hue-rotate(230deg);
+}
+
 .editor-badge.vscode {
   background: color-mix(in srgb, #007acc 15%, transparent);
-  color: #007acc;
 }
 
 .editor-badge.cursor {
   background: color-mix(in srgb, #a78bfa 15%, transparent);
-  color: #a78bfa;
 }

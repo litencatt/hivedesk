@@ -111,35 +111,38 @@ async function enrichProcess(pid: number): Promise<Partial<ClaudeProcess>> {
     const currentTask = sessionTask ?? openFiles[0] ?? null;
 
     let gitBranch: string | null = null;
+    let gitCommonDir: string | null = null;
     try {
-      const { stdout: branchOut } = await execFileAsync(
-        "git", ["-C", projectDir, "rev-parse", "--abbrev-ref", "HEAD"],
-        { timeout: 2000 }
-      );
+      const [{ stdout: branchOut }, { stdout: commonDirOut }] = await Promise.all([
+        execFileAsync("git", ["-C", projectDir, "rev-parse", "--abbrev-ref", "HEAD"], { timeout: 2000 }),
+        execFileAsync("git", ["-C", projectDir, "rev-parse", "--git-common-dir"], { timeout: 2000 }),
+      ]);
       gitBranch = branchOut.trim() || null;
+      const rawCommonDir = commonDirOut.trim();
+      // --git-common-dir returns relative path like ".git" for the main worktree
+      gitCommonDir = rawCommonDir.startsWith("/")
+        ? rawCommonDir
+        : path.resolve(projectDir, rawCommonDir);
     } catch { /* not a git repo or git not available */ }
 
-    return { projectDir, openFiles, currentTask, gitBranch, modelName };
+    return { projectDir, openFiles, currentTask, gitBranch, gitCommonDir, modelName };
   } catch {
     return { projectDir: "", openFiles: [], currentTask: null };
   }
 }
 
-const EDITOR_WORKSPACE_DIRS: Array<{ app: EditorWindow["app"]; workspaceStorageDir: string; processPattern: RegExp }> = [
+const EDITOR_CONFIGS: Array<{ app: EditorWindow["app"]; globalStoragePath: string; processPattern: RegExp }> = [
   {
     app: "vscode",
-    workspaceStorageDir: path.join(os.homedir(), "Library/Application Support/Code/User/workspaceStorage"),
+    globalStoragePath: path.join(os.homedir(), "Library/Application Support/Code/User/globalStorage/storage.json"),
     processPattern: /Visual Studio Code/,
   },
   {
     app: "cursor",
-    workspaceStorageDir: path.join(os.homedir(), "Library/Application Support/Cursor/User/workspaceStorage"),
+    globalStoragePath: path.join(os.homedir(), "Library/Application Support/Cursor/User/globalStorage/storage.json"),
     processPattern: /[Cc]ursor/,
   },
 ];
-
-// Window is considered "open" if workspace.json was modified within this duration
-const EDITOR_WINDOW_OPEN_MS = 30 * 60 * 60 * 1000; // 30 hours
 
 async function isEditorRunning(pattern: RegExp): Promise<boolean> {
   try {
@@ -152,36 +155,25 @@ async function isEditorRunning(pattern: RegExp): Promise<boolean> {
 
 async function collectEditorWindows(): Promise<EditorWindow[]> {
   const results: EditorWindow[] = [];
-  const now = Date.now();
 
-  for (const { app, workspaceStorageDir, processPattern } of EDITOR_WORKSPACE_DIRS) {
+  for (const { app, globalStoragePath, processPattern } of EDITOR_CONFIGS) {
     if (!await isEditorRunning(processPattern)) continue;
 
-    let hashDirs: string[];
     try {
-      hashDirs = await readdir(workspaceStorageDir);
-    } catch {
-      continue;
-    }
-
-    for (const hashDir of hashDirs) {
-      const workspaceJsonPath = path.join(workspaceStorageDir, hashDir, "workspace.json");
-      try {
-        const fileStat = await stat(workspaceJsonPath);
-        if (now - fileStat.mtime.getTime() > EDITOR_WINDOW_OPEN_MS) continue;
-
-        const content = await readFile(workspaceJsonPath, "utf-8");
-        const { folder } = JSON.parse(content) as { folder?: string };
-        if (!folder?.startsWith("file://")) continue;
-
-        const projectDir = decodeURIComponent(folder.replace("file://", ""));
+      const content = await readFile(globalStoragePath, "utf-8");
+      const storage = JSON.parse(content) as {
+        backupWorkspaces?: { folders?: Array<{ folderUri: string }> };
+      };
+      const folders = storage.backupWorkspaces?.folders ?? [];
+      for (const { folderUri } of folders) {
+        if (!folderUri.startsWith("file://")) continue;
+        const projectDir = decodeURIComponent(folderUri.replace("file://", "")).replace(/\/$/, "");
         if (!projectDir) continue;
-
         const projectName = projectDir.split("/").pop() ?? projectDir;
         results.push({ app, projectDir, projectName });
-      } catch {
-        continue;
       }
+    } catch {
+      continue;
     }
   }
 
@@ -247,6 +239,7 @@ export async function collectProcesses(): Promise<DashboardData> {
         currentTask: extra.currentTask ?? null,
         openFiles: extra.openFiles ?? [],
         gitBranch: extra.gitBranch ?? null,
+        gitCommonDir: extra.gitCommonDir ?? null,
         modelName: extra.modelName ?? null,
         editorApp: null,
         isMcpBridge,
