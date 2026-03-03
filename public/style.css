@@ -191,14 +191,6 @@ main {
   opacity: 1;
 }
 
-.card:focus {
-  outline: none;
-}
-
-.card.editor-focused {
-  border-width: 2px;
-  opacity: 1;
-}
 
 .card:active {
   transform: translateY(0);

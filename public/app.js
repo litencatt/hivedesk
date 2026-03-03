@@ -126,7 +126,7 @@ function render(data) {
     .sort((a, b) => a.repoName.localeCompare(b.repoName));
 
   const cardHtml = (proc) => `
-    <div class="card ${proc.status}${data.focusedProjectDir === proc.projectDir && proc.status !== "working" ? " editor-focused" : ""}" data-pid="${proc.pid}" role="button" tabindex="0">
+    <div class="card ${proc.status}" data-pid="${proc.pid}" role="button" tabindex="0">
       <div class="card-header">
         <div class="project-name-row">
           <div class="project-name">${escapeHtml(proc.projectName)}</div>
