@@ -1,10 +1,16 @@
 # hivedesk
 
-A dashboard for developers running multiple AI agents (Claude Code) in parallel. See what's happening across all your projects at a glance, and **click any card to instantly focus the corresponding VSCode / Cursor window**.
+**Click any card to instantly focus the corresponding VSCode / Cursor window.** A dashboard for monitoring multiple AI agents (Claude Code) running in parallel across your projects.
 
 Built for developers who juggle multiple projects simultaneously. macOS only.
 
 [日本語版 README はこちら](./README.ja.md)
+
+## Target
+
+- Developers working with **multiple displays**
+- Developers who use **VSCode or Cursor** as their primary IDE, with **multiple instances open simultaneously**, each running an AI agent in its own terminal
+- **macOS only** (current)
 
 ## Features
 
