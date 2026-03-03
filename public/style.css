@@ -191,14 +191,6 @@ main {
   opacity: 1;
 }
 
-.card:focus {
-  outline: none;
-}
-
-.card.editor-focused {
-  border-width: 2px;
-  opacity: 1;
-}
 
 .card:active {
   transform: translateY(0);
@@ -475,9 +467,9 @@ main {
 }
 
 .editor-badge.vscode {
-  background: color-mix(in srgb, #007acc 15%, transparent);
+  background: transparent;
 }
 
 .editor-badge.cursor {
-  background: color-mix(in srgb, #a78bfa 15%, transparent);
+  background: transparent;
 }
