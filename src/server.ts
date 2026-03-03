@@ -1,5 +1,6 @@
 import express, { Request, Response } from "express";
 import path from "path";
+import { watch } from "fs";
 import { collectProcesses } from "./processCollector.js";
 import { focusVSCodeWindow } from "./vscodeController.js";
 import { DashboardData } from "./types.js";
@@ -23,6 +24,27 @@ async function getProcessData(): Promise<DashboardData> {
   cache = { data, fetchedAt: now };
   return data;
 }
+
+// SSE clients registry
+const sseClients = new Set<Response>();
+
+function broadcastReload() {
+  for (const res of sseClients) {
+    res.write("event: reload\ndata: {}\n\n");
+  }
+}
+
+// Watch public/ for hot reload
+const publicDir = path.join(__dirname, "..", "public");
+let reloadTimer: ReturnType<typeof setTimeout> | null = null;
+watch(publicDir, { recursive: true }, () => {
+  // Debounce: wait 50ms to avoid duplicate events
+  if (reloadTimer) clearTimeout(reloadTimer);
+  reloadTimer = setTimeout(() => {
+    console.log("[hot-reload] public/ changed — reloading clients");
+    broadcastReload();
+  }, 50);
+});
 
 // REST snapshot
 app.get("/api/processes", async (_req: Request, res: Response) => {
@@ -64,6 +86,8 @@ app.get("/events", (req: Request, res: Response) => {
   res.setHeader("Connection", "keep-alive");
   res.flushHeaders();
 
+  sseClients.add(res);
+
   const sendData = async () => {
     try {
       const data = await getProcessData();
@@ -78,6 +102,7 @@ app.get("/events", (req: Request, res: Response) => {
 
   req.on("close", () => {
     clearInterval(interval);
+    sseClients.delete(res);
   });
 });
 
