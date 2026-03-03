@@ -10,6 +10,7 @@ export interface ClaudeProcess {
   elapsedSeconds: number;
   currentTask: string | null;
   openFiles: string[];
+  gitBranch: string | null;
   isMcpBridge: boolean;
 }
 
