@@ -125,18 +125,21 @@ async function enrichProcess(pid: number): Promise<Partial<ClaudeProcess>> {
   }
 }
 
-const EDITOR_BACKUP_DIRS: Array<{ app: EditorWindow["app"]; backupsDir: string; processPattern: RegExp }> = [
+const EDITOR_WORKSPACE_DIRS: Array<{ app: EditorWindow["app"]; workspaceStorageDir: string; processPattern: RegExp }> = [
   {
     app: "vscode",
-    backupsDir: path.join(os.homedir(), "Library/Application Support/Code/Backups"),
+    workspaceStorageDir: path.join(os.homedir(), "Library/Application Support/Code/User/workspaceStorage"),
     processPattern: /Visual Studio Code/,
   },
   {
     app: "cursor",
-    backupsDir: path.join(os.homedir(), "Library/Application Support/Cursor/Backups"),
+    workspaceStorageDir: path.join(os.homedir(), "Library/Application Support/Cursor/User/workspaceStorage"),
     processPattern: /[Cc]ursor/,
   },
 ];
+
+// Window is considered "open" if workspace.json was modified within this duration
+const EDITOR_WINDOW_OPEN_MS = 8 * 60 * 60 * 1000; // 8 hours
 
 async function isEditorRunning(pattern: RegExp): Promise<boolean> {
   try {
@@ -149,52 +152,35 @@ async function isEditorRunning(pattern: RegExp): Promise<boolean> {
 
 async function collectEditorWindows(): Promise<EditorWindow[]> {
   const results: EditorWindow[] = [];
+  const now = Date.now();
 
-  for (const { app, backupsDir, processPattern } of EDITOR_BACKUP_DIRS) {
+  for (const { app, workspaceStorageDir, processPattern } of EDITOR_WORKSPACE_DIRS) {
     if (!await isEditorRunning(processPattern)) continue;
 
-    let windowDirs: string[];
+    let hashDirs: string[];
     try {
-      windowDirs = await readdir(backupsDir);
+      hashDirs = await readdir(workspaceStorageDir);
     } catch {
       continue;
     }
 
-    for (const windowId of windowDirs) {
-      const fileBackupDir = path.join(backupsDir, windowId, "file");
-      let backupFiles: string[];
+    for (const hashDir of hashDirs) {
+      const workspaceJsonPath = path.join(workspaceStorageDir, hashDir, "workspace.json");
       try {
-        backupFiles = await readdir(fileBackupDir);
-      } catch {
-        continue;
-      }
-      if (backupFiles.length === 0) continue;
+        const fileStat = await stat(workspaceJsonPath);
+        if (now - fileStat.mtime.getTime() > EDITOR_WINDOW_OPEN_MS) continue;
 
-      try {
-        const content = await readFile(path.join(fileBackupDir, backupFiles[0]), "utf-8");
-        const firstLine = content.split("\n")[0].trim();
-        // First line: "file:///path/to/file.ts {metadata}"
-        const match = firstLine.match(/^file:\/\/\/(.+?)\s*\{/);
-        if (!match) continue;
-        const filePath = "/" + decodeURIComponent(match[1]);
+        const content = await readFile(workspaceJsonPath, "utf-8");
+        const { folder } = JSON.parse(content) as { folder?: string };
+        if (!folder?.startsWith("file://")) continue;
 
-        // Find git root from the file path
-        let projectDir: string | null = null;
-        try {
-          const { stdout } = await execFileAsync(
-            "git", ["-C", path.dirname(filePath), "rev-parse", "--show-toplevel"],
-            { timeout: 2000 }
-          );
-          projectDir = stdout.trim() || null;
-        } catch {
-          projectDir = path.dirname(filePath);
-        }
+        const projectDir = decodeURIComponent(folder.replace("file://", ""));
         if (!projectDir) continue;
 
         const projectName = projectDir.split("/").pop() ?? projectDir;
         results.push({ app, projectDir, projectName });
       } catch {
-        // skip
+        continue;
       }
     }
   }
