@@ -186,7 +186,7 @@ function render(data) {
 
   const editorOnlyHtml = (data.editorWindows && data.editorWindows.length > 0)
     ? `<div class="repo-group">
-        <div class="repo-group-header editor-only-header">最近開いたプロジェクト（Claude なし）</div>
+        <div class="repo-group-header editor-only-header">最近開いたプロジェクト</div>
         <div class="repo-group-cards">
           ${[...data.editorWindows]
             .sort((a, b) => (a.projectName ?? "").localeCompare(b.projectName ?? ""))
