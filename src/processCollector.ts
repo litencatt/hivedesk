@@ -1,9 +1,9 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { readdir, readFile, stat } from "fs/promises";
+import { access, readdir, readFile, stat } from "fs/promises";
 import path from "path";
 import os from "os";
-import { ClaudeProcess, DashboardData, EditorWindow } from "./types.js";
+import { ClaudeProcess, DashboardData, DockerContainer, EditorWindow } from "./types.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -122,7 +122,10 @@ async function enrichProcess(pid: number): Promise<Partial<ClaudeProcess>> {
       .map(p => p.replace(projectDir + "/", ""))
       .filter((v, i, a) => a.indexOf(v) === i);
 
-    const { currentTask: sessionTask, modelName } = await readSessionData(projectDir);
+    const [{ currentTask: sessionTask, modelName }, containers] = await Promise.all([
+      readSessionData(projectDir),
+      collectDockerContainers(projectDir),
+    ]);
     const currentTask = sessionTask ?? openFiles[0] ?? null;
 
     let gitBranch: string | null = null;
@@ -151,7 +154,7 @@ async function enrichProcess(pid: number): Promise<Partial<ClaudeProcess>> {
       }
     } catch { /* not a git repo or git not available */ }
 
-    return { projectDir, openFiles, currentTask, gitBranch, gitCommonDir, modelName, prUrl };
+    return { projectDir, openFiles, currentTask, gitBranch, gitCommonDir, modelName, prUrl, containers };
   } catch {
     return { projectDir: "", openFiles: [], currentTask: null };
   }
@@ -198,6 +201,62 @@ async function collectEditorWindows(): Promise<EditorWindow[]> {
   }
 
   return results;
+}
+
+const COMPOSE_FILE_NAMES = [
+  "docker-compose.yml", "docker-compose.yaml",
+  "compose.yml", "compose.yaml",
+];
+
+async function findComposeFile(dir: string, depth: number): Promise<string | null> {
+  for (const name of COMPOSE_FILE_NAMES) {
+    const candidate = path.join(dir, name);
+    try {
+      await access(candidate);
+      return candidate;
+    } catch { /* not found */ }
+  }
+  if (depth <= 0) return null;
+  try {
+    const entries = await readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      if (entry.name.startsWith(".") || entry.name === "node_modules") continue;
+      const found = await findComposeFile(path.join(dir, entry.name), depth - 1);
+      if (found) return found;
+    }
+  } catch { /* skip unreadable dirs */ }
+  return null;
+}
+
+async function collectDockerContainers(projectDir: string): Promise<DockerContainer[]> {
+  if (!projectDir) return [];
+
+  const composeFile = await findComposeFile(projectDir, 2);
+  if (!composeFile) return [];
+
+  try {
+    const { stdout } = await execFileAsync(
+      "docker", ["compose", "-f", composeFile, "ps", "--format", "json"],
+      { timeout: 3000 }
+    );
+    const lines = stdout.trim().split("\n").filter(Boolean);
+    const containers: DockerContainer[] = [];
+    for (const line of lines) {
+      try {
+        const obj = JSON.parse(line);
+        containers.push({
+          service: obj.Service ?? "",
+          name: obj.Name ?? "",
+          state: (obj.State ?? "").toLowerCase(),
+          status: obj.Status ?? "",
+        });
+      } catch { /* skip malformed */ }
+    }
+    return containers;
+  } catch {
+    return [];
+  }
 }
 
 const MCP_BRIDGE_PATHS = ["/mcp", "mcp-server", "mcp_server", ".mcp"];
@@ -262,6 +321,7 @@ export async function collectProcesses(): Promise<DashboardData> {
         prUrl: extra.prUrl ?? null,
         editorApp: null,
         isMcpBridge,
+        containers: extra.containers ?? [],
       } satisfies ClaudeProcess;
     })
   );

@@ -93,6 +93,16 @@ function render(data) {
         ${proc.openFiles.slice(0, 5).map(f => `<div class="open-file">${escapeHtml(f)}</div>`).join("")}
         ${proc.openFiles.length > 5 ? `<div class="open-file open-file-more">+${proc.openFiles.length - 5} more</div>` : ""}
       </div>` : ""}
+      ${proc.containers && proc.containers.length > 0 ? `
+      <div class="card-containers">
+        <div class="containers-header">🐳 Containers</div>
+        ${proc.containers.map(c => `
+          <div class="container-item">
+            <span class="container-state container-state-${escapeHtml(c.state)}">${escapeHtml(c.state)}</span>
+            <span class="container-service">${escapeHtml(c.service)}</span>
+            <span class="container-status">${escapeHtml(c.status)}</span>
+          </div>`).join("")}
+      </div>` : ""}
       <div class="card-footer">
         <span class="pid">PID ${proc.pid}</span>
         <button class="stats-toggle" aria-label="toggle stats">···</button>

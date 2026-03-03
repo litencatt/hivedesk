@@ -1,3 +1,10 @@
+export interface DockerContainer {
+  service: string;
+  name: string;
+  state: string;
+  status: string;
+}
+
 export interface ClaudeProcess {
   pid: number;
   projectName: string;
@@ -16,6 +23,7 @@ export interface ClaudeProcess {
   prUrl: string | null;
   editorApp: "vscode" | "cursor" | null;
   isMcpBridge: boolean;
+  containers: DockerContainer[];
 }
 
 export interface EditorWindow {
