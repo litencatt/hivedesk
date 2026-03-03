@@ -1,45 +1,61 @@
 # hivedesk
 
-複数の AI エージェント（Claude Code）を並行して走らせているとき、「どのプロジェクトで何が動いているか」を一目で把握し、**カードをクリックするだけで対応する VSCode / Cursor ウィンドウに即座にフォーカス**できるダッシュボードです。
+複数の Claude Code AI エージェントをリアルタイムで監視するダッシュボードです。カードをクリックするだけで、対応する VSCode / Cursor ウィンドウに即座にフォーカスできます。
 
-複数プロジェクトを渡り歩く開発スタイルに特化した、macOS 向けのエージェント管理ツールです。
+複数プロジェクトを並行して進める開発スタイルに特化した、**macOS 向け**のエージェント管理ツールです。
 
 [English README](./README.md)
 
 ## ターゲット
 
 - **複数ディスプレイ**で開発している人
-- **VSCode や Cursor** をメインの IDE として使用しており、**複数ウィンドウを同時に起動**し、それぞれのターミナルで AI エージェントを動かしている人
-- **macOS のみ**対応（現在）
+- **VSCode や Cursor** をメインの IDE として使用しており、**複数ウィンドウを同時に起動**し、それぞれのターミナルで Claude Code を動かしている人
+
+## スクリーンショット
+
+**実際の使用例** — 同一リポジトリの worktree をグループ表示:
 
 ![hivedesk スクリーンショット](./docs/screenshot.png)
+
+**デモモード** — すべての情報をダミーデータに置換（Demo ボタンでトグル）:
 
 ![hivedesk デモ](./docs/demo.png)
 
 ## 機能
 
-- **ワンクリック IDE フォーカス**: カードをクリックするだけで対応する VSCode / Cursor ウィンドウが即座にアクティブになる（osascript による瞬時切り替え）
-- **エディタウィンドウ一覧**: Claude プロセスがない VSCode / Cursor ウィンドウも表示し、クリックでフォーカス可能
-- **リアルタイムプロセス監視**: 実行中の Claude Code プロセスをカード形式で表示
-- **詳細情報表示**: 各カードに以下の情報を表示
-  - プロジェクト名とディレクトリパス
-  - Git ブランチ名と PR リンク
-  - 使用中のモデル（Claude Opus、Sonnet など）
-  - 現在処理中のタスク
-  - 開いているファイル一覧
-  - CPU / メモリ使用率（トグル可能）
-  - 実行時間と PID
-- **リポジトリごとのグループ化**: git worktree を認識し、同じリポジトリのプロセスをグループ化表示
-- **ホットリロード**: `public/` ディレクトリ内のファイル変更を自動検出して画面をリロード
-- **ダーク/ライトテーマ**: システム設定に応じて自動切り替え
+### カード表示
+各 Claude Code プロセスがカードとして表示され、以下の情報を確認できます:
+- **リポジトリ名** + **git ブランチ名**（メインタイトル）
+- **PR リンク**と PR 番号（例: `PR:1234`）
+- **使用中のモデル**（Sonnet、Opus など）
+- セッションデータから取得した**現在のタスク**
+- **開いているファイル**一覧
+- **Docker コンテナ**の状態（`🐳 3/4 api db redis`）
+- 右上に**エディタアイコン**（VSCode / Cursor）
+- 緑の枠線で **working / idle 状態**を表示
+- `···` クリックで**統計パネル**（CPU・メモリ・起動時間・PID）をトグル
+
+### レイアウト
+- **worktree グループ化**: 同一リポジトリの worktree をまとめてグループ表示。worktree 数の多い順に上から並ぶ
+- **最近開いたプロジェクト**: Claude プロセスのないエディタウィンドウを下部にまとめて表示
+
+### ヘッダー
+- **トークン使用量**: 5 時間・週次の Claude API 使用状況（例: `5h:32% (2h5m)[reset:02:00] wk:35%(2d13h)`）
+- **Working / Idle カウント**: アクティブ・待機中のエージェント数をリアルタイム表示
+- **デモモード**: スクショ撮影用にプロジェクト情報をダミーデータに置換
+
+### その他
+- **ワンクリック IDE フォーカス**: カードをクリックで対応する VSCode / Cursor ウィンドウが即座にアクティブに
+- **ダーク / ライトテーマ**: システム設定に応じて自動切り替え
 - **SSE ベースのリアルタイム更新**: 2 秒ごとにデータを更新
+- **ホットリロード**: 開発中は `public/` 配下のファイル変更を自動検出してリロード
 
 ## 前提条件
 
-- **macOS** （`ps`、`osascript`、`open -a` コマンドを使用）
+- **macOS**（`ps`、`lsof`、`osascript` を使用）
 - **Node.js 18+**
-- **GitHub CLI** (`gh`) - PR リンク取得用
-- **Git** - ブランチ情報取得用
+- **GitHub CLI** (`gh`) — PR リンク取得用
+- **Git** — ブランチ情報取得用
 
 ## インストール
 
@@ -66,11 +82,60 @@ npm run build
 npm start
 ```
 
+## プロジェクト構成
+
+```
+hivedesk/
+├── src/
+│   ├── server.ts                    # Express サーバー、SSE、REST API
+│   ├── processCollector.ts          # データ収集のオーケストレーター
+│   ├── types.ts                     # TypeScript 型定義
+│   ├── collectors/
+│   │   ├── sessionCollector.ts      # Claude セッションデータ & レート制限使用量
+│   │   ├── gitCollector.ts          # git ブランチ、commonDir、PR URL
+│   │   ├── dockerCollector.ts       # Docker Compose コンテナ状態
+│   │   └── editorCollector.ts       # VSCode / Cursor ウィンドウ一覧
+│   └── utils/
+│       └── processUtils.ts          # 共通ユーティリティ関数
+├── public/
+│   ├── index.html                   # ダッシュボード HTML
+│   ├── app.js                       # フロントエンド（SSE クライアント、レンダリング、デモモード）
+│   ├── style.css                    # ダーク / ライトテーマ対応スタイル
+│   └── [icons].svg                  # Claude、VSCode、Cursor、git-branch アイコン
+├── docs/
+│   ├── screenshot.png               # 実際の使用例スクショ
+│   └── demo.png                     # デモモードスクショ
+├── package.json
+└── tsconfig.json
+```
+
+## 技術スタック
+
+- **バックエンド**: Node.js + TypeScript + Express
+- **フロントエンド**: Vanilla JavaScript（フレームワークなし）
+- **通信**: Server-Sent Events（リアルタイムプッシュ）
+- **プロセス情報取得**: `ps`、`lsof`、`git`、`gh` CLI
+- **ウィンドウ制御**: macOS `osascript` + `open -a`
+
+## 開発スクリプト
+
+```bash
+npm run build      # TypeScript をコンパイル
+npm run dev        # 開発モード（tsx watch + ホットリロード）
+npm start          # 本番モード（ビルド後）
+npm test           # テスト実行
+npm run test:watch # テスト監視モード
+```
+
 ## API リファレンス
+
+### `GET /events`
+
+SSE ストリーム — 2 秒ごとにダッシュボード全データをプッシュ配信。
 
 ### `GET /api/processes`
 
-実行中のプロセスデータのスナップショットを取得します。
+実行中の Claude Code プロセスデータのスナップショットを返します。
 
 **レスポンス例:**
 ```json
@@ -83,18 +148,30 @@ npm start
       "status": "working",
       "cpuPercent": 15.2,
       "memPercent": 8.5,
-      "currentTask": "Implement new feature for dashboard",
+      "currentTask": "新機能の実装",
       "gitBranch": "feat/new-feature",
-      "modelName": "claude-opus-4-1",
+      "gitCommonDir": "/Users/user/projects/my-project/.git",
+      "modelName": "claude-sonnet-4-6",
       "prUrl": "https://github.com/user/repo/pull/123",
       "openFiles": ["src/server.ts", "src/types.ts"],
-      "editorApp": "vscode"
+      "editorApp": "vscode",
+      "containers": [
+        { "service": "api", "name": "api-1", "state": "running", "status": "Up 2 hours" }
+      ]
     }
   ],
   "editorWindows": [],
   "totalWorking": 1,
   "totalIdle": 2,
-  "collectedAt": "2024-01-15T10:30:45.123Z"
+  "usage": {
+    "totalInputTokens": 120000,
+    "totalOutputTokens": 45000,
+    "fiveHourPercent": 32,
+    "weeklyPercent": 35,
+    "fiveHourResetsAt": "2025-01-15T02:00:00Z",
+    "weeklyResetsAt": "2025-01-20T00:00:00Z"
+  },
+  "collectedAt": "2025-01-15T10:30:45.123Z"
 }
 ```
 
@@ -102,80 +179,36 @@ npm start
 
 Claude プロセスに対応するエディタウィンドウにフォーカスします。
 
-**リクエスト:**
 ```json
 { "pid": 12345 }
 ```
 
 ### `POST /api/focus-editor`
 
-Claude プロセスがないエディタウィンドウにフォーカスします。
+Claude プロセスのないエディタウィンドウにフォーカスします。
 
-**リクエスト:**
 ```json
 { "projectDir": "/Users/user/projects/my-project", "app": "vscode" }
-```
-
-### `GET /events`
-
-Server-Sent Events (SSE) ストリーム。2 秒ごとにプロセスデータを配信します。
-
-## プロジェクト構成
-
-```
-hivedesk/
-├── src/
-│   ├── server.ts              # Express サーバー、SSE、REST API
-│   ├── processCollector.ts    # Claude プロセス情報の収集
-│   ├── vscodeController.ts    # VSCode/Cursor フォーカス制御
-│   └── types.ts               # TypeScript 型定義
-├── public/
-│   ├── index.html             # ダッシュボード HTML
-│   ├── app.js                 # フロントエンド（SSE クライアント、レンダリング）
-│   ├── style.css              # ダーク/ライトテーマ対応スタイル
-│   └── [icons].svg            # Claude、VSCode、Cursor のアイコン
-├── package.json
-└── tsconfig.json
-```
-
-## 技術スタック
-
-- **バックエンド**: Node.js + TypeScript + Express
-- **フロントエンド**: Vanilla JavaScript (SSE クライアント)
-- **通信**: Server-Sent Events (リアルタイム更新)
-- **プロセス情報取得**: `ps`、`lsof`、`git`、`gh` CLI
-- **ウィンドウ制御**: macOS `osascript` + `open -a`
-
-## 開発スクリプト
-
-```bash
-npm run build      # TypeScript をコンパイル
-npm run dev        # 開発モード（tsx watch）
-npm start          # 本番モード（コンパイル後）
-npm run test       # テスト実行
-npm run test:watch # テスト監視モード
 ```
 
 ## トラブルシューティング
 
 ### "No Claude processes found" と表示される
 
-Claude Code が起動していることを確認してください。
-
+Claude Code が起動していることを確認してください:
 ```bash
 ps aux | grep claude
 ```
 
 ### PR リンクが表示されない
 
-- GitHub CLI (`gh`) がインストールされていることを確認してください
-- リポジトリが GitHub に接続されていることを確認してください
-- 現在のブランチが `main` または `master` 以外であることを確認してください
+- GitHub CLI (`gh`) がインストール・認証済みであることを確認
+- 現在のブランチが `main` または `master` 以外であることを確認
 
 ### VSCode / Cursor のフォーカスが効かない
 
-- エディタアプリケーションが起動していることを確認してください
-- macOS の権限設定を確認してください（アクセシビリティ）
+- エディタが起動していることを確認
+- システム設定 → プライバシーとセキュリティ → アクセシビリティ で権限を確認
 
 ## ライセンス
 
@@ -183,4 +216,4 @@ MIT
 
 ## 貢献
 
-Issue や Pull Request は大歓迎です。
+Issue や Pull Request は大歓迎です！

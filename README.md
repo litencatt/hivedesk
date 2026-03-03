@@ -1,42 +1,58 @@
 # hivedesk
 
-**Click any card to instantly focus the corresponding VSCode / Cursor window.** A dashboard for monitoring multiple AI agents (Claude Code) running in parallel across your projects.
+A real-time dashboard for monitoring multiple Claude Code AI agents running in parallel. Click any card to instantly focus the corresponding VSCode / Cursor window.
 
-Built for developers who juggle multiple projects simultaneously. macOS only.
+Built for developers who juggle multiple projects simultaneously. **macOS only.**
 
 [日本語版 README はこちら](./README.ja.md)
 
 ## Target
 
 - Developers working with **multiple displays**
-- Developers who use **VSCode or Cursor** as their primary IDE, with **multiple instances open simultaneously**, each running an AI agent in its own terminal
-- **macOS only** (current)
+- Developers who use **VSCode or Cursor** as their primary IDE, with **multiple instances open simultaneously**, each running a Claude Code agent in its own terminal
+
+## Screenshots
+
+**Real usage** — multiple worktrees of the same repository grouped together:
 
 ![hivedesk screenshot](./docs/screenshot.png)
+
+**Demo mode** — all sensitive info replaced with dummy data (toggle with the Demo button):
 
 ![hivedesk demo](./docs/demo.png)
 
 ## Features
 
-- **One-click IDE focus**: Click a card to instantly activate the corresponding VSCode / Cursor window (instant switching via osascript)
-- **Editor window listing**: Shows VSCode / Cursor windows even without an active Claude process — click to focus
-- **Real-time process monitoring**: Displays running Claude Code processes as cards in a grid
-- **Rich card info**:
-  - Project name and directory path
-  - Git branch and PR link
-  - Active model (Claude Opus, Sonnet, etc.)
-  - Current task description
-  - Open files list
-  - CPU / memory usage (toggleable)
-  - Uptime and PID
-- **Repository grouping**: Groups worktrees from the same repository together
-- **Hot reload**: Auto-reloads the UI when files in `public/` change
-- **Dark / light theme**: Follows your system preference
-- **SSE-based live updates**: Refreshes data every 2 seconds
+### Card display
+Each Claude Code process appears as a card showing:
+- **Repository name** + **git branch** (main title)
+- **PR link** with PR number (e.g. `PR:1234`)
+- **Active model** (Sonnet, Opus, etc.)
+- **Current task** description from session data
+- **Open files** list
+- **Docker containers** status (`🐳 3/4 api db redis`)
+- **Editor icon** (VSCode / Cursor) in top-right corner
+- **Working/idle status** via green border highlight
+- **Stats panel** (CPU, memory, uptime, PID) — toggle with `···`
+
+### Layout
+- **Worktree grouping**: Multiple worktrees of the same repository are grouped under a repo header, sorted by worktree count (most active repos first)
+- **Recently opened projects**: Editor windows without an active Claude process shown in a separate section at the bottom
+
+### Header
+- **Token usage**: 5-hour and weekly Claude API usage (e.g. `5h:32% (2h5m)[reset:02:00] wk:35%(2d13h)`)
+- **Working/idle counts**: Live count of active and idle agents
+- **Demo mode**: Replace all project info with dummy data for screenshots
+
+### Other
+- **One-click IDE focus**: Click a card to instantly activate the corresponding VSCode / Cursor window
+- **Dark / light theme**: Follows system preference
+- **SSE-based live updates**: Refreshes every 2 seconds
+- **Hot reload**: Auto-reloads the UI when files in `public/` change during development
 
 ## Prerequisites
 
-- **macOS** (uses `ps`, `osascript`, `open -a`)
+- **macOS** (uses `ps`, `lsof`, `osascript`)
 - **Node.js 18+**
 - **GitHub CLI** (`gh`) — for PR link detection
 - **Git** — for branch info
@@ -66,7 +82,56 @@ npm run build
 npm start
 ```
 
+## Project Structure
+
+```
+hivedesk/
+├── src/
+│   ├── server.ts                    # Express server, SSE, REST API
+│   ├── processCollector.ts          # Orchestrates data collection
+│   ├── types.ts                     # TypeScript types
+│   ├── collectors/
+│   │   ├── sessionCollector.ts      # Claude session data & rate limit usage
+│   │   ├── gitCollector.ts          # Git branch, common dir, PR URL
+│   │   ├── dockerCollector.ts       # Docker Compose container status
+│   │   └── editorCollector.ts       # VSCode / Cursor open windows
+│   └── utils/
+│       └── processUtils.ts          # Shared utility functions
+├── public/
+│   ├── index.html                   # Dashboard HTML
+│   ├── app.js                       # Frontend (SSE client, rendering, demo mode)
+│   ├── style.css                    # Dark/light theme styles
+│   └── [icons].svg                  # Claude, VSCode, Cursor, git-branch icons
+├── docs/
+│   ├── screenshot.png               # Real usage screenshot
+│   └── demo.png                     # Demo mode screenshot
+├── package.json
+└── tsconfig.json
+```
+
+## Tech Stack
+
+- **Backend**: Node.js + TypeScript + Express
+- **Frontend**: Vanilla JavaScript (SSE client, no framework)
+- **Communication**: Server-Sent Events (real-time push)
+- **Process info**: `ps`, `lsof`, `git`, `gh` CLI
+- **Window control**: macOS `osascript` + `open -a`
+
+## Scripts
+
+```bash
+npm run build      # Compile TypeScript
+npm run dev        # Development mode (tsx watch + hot reload)
+npm start          # Production mode (after build)
+npm test           # Run tests
+npm run test:watch # Watch mode tests
+```
+
 ## API Reference
+
+### `GET /events`
+
+SSE stream — pushes full dashboard data every 2 seconds.
 
 ### `GET /api/processes`
 
@@ -85,16 +150,28 @@ Returns a snapshot of all running Claude Code processes.
       "memPercent": 8.5,
       "currentTask": "Implement new feature for dashboard",
       "gitBranch": "feat/new-feature",
-      "modelName": "claude-opus-4-1",
+      "gitCommonDir": "/Users/user/projects/my-project/.git",
+      "modelName": "claude-sonnet-4-6",
       "prUrl": "https://github.com/user/repo/pull/123",
       "openFiles": ["src/server.ts", "src/types.ts"],
-      "editorApp": "vscode"
+      "editorApp": "vscode",
+      "containers": [
+        { "service": "api", "name": "api-1", "state": "running", "status": "Up 2 hours" }
+      ]
     }
   ],
   "editorWindows": [],
   "totalWorking": 1,
   "totalIdle": 2,
-  "collectedAt": "2024-01-15T10:30:45.123Z"
+  "usage": {
+    "totalInputTokens": 120000,
+    "totalOutputTokens": 45000,
+    "fiveHourPercent": 32,
+    "weeklyPercent": 35,
+    "fiveHourResetsAt": "2025-01-15T02:00:00Z",
+    "weeklyResetsAt": "2025-01-20T00:00:00Z"
+  },
+  "collectedAt": "2025-01-15T10:30:45.123Z"
 }
 ```
 
@@ -102,7 +179,6 @@ Returns a snapshot of all running Claude Code processes.
 
 Focus the editor window associated with a Claude process.
 
-**Request:**
 ```json
 { "pid": 12345 }
 ```
@@ -111,49 +187,8 @@ Focus the editor window associated with a Claude process.
 
 Focus an editor window not associated with a Claude process.
 
-**Request:**
 ```json
 { "projectDir": "/Users/user/projects/my-project", "app": "vscode" }
-```
-
-### `GET /events`
-
-SSE stream — delivers process data every 2 seconds.
-
-## Project Structure
-
-```
-hivedesk/
-├── src/
-│   ├── server.ts              # Express server, SSE, REST API
-│   ├── processCollector.ts    # Claude process info collection
-│   ├── vscodeController.ts    # VSCode/Cursor focus control
-│   └── types.ts               # TypeScript types
-├── public/
-│   ├── index.html             # Dashboard HTML
-│   ├── app.js                 # Frontend (SSE client, rendering)
-│   ├── style.css              # Dark/light theme styles
-│   └── [icons].svg            # Claude, VSCode, Cursor icons
-├── package.json
-└── tsconfig.json
-```
-
-## Tech Stack
-
-- **Backend**: Node.js + TypeScript + Express
-- **Frontend**: Vanilla JavaScript (SSE client)
-- **Communication**: Server-Sent Events (real-time updates)
-- **Process info**: `ps`, `lsof`, `git`, `gh` CLI
-- **Window control**: macOS `osascript` + `open -a`
-
-## Scripts
-
-```bash
-npm run build      # Compile TypeScript
-npm run dev        # Development mode (tsx watch)
-npm start          # Production mode (after build)
-npm run test       # Run tests
-npm run test:watch # Watch mode tests
 ```
 
 ## Troubleshooting
@@ -168,13 +203,12 @@ ps aux | grep claude
 ### PR link not showing
 
 - Ensure GitHub CLI (`gh`) is installed and authenticated
-- Ensure the repository is connected to GitHub
 - The current branch must not be `main` or `master`
 
 ### VSCode / Cursor focus not working
 
-- Make sure the editor application is running
-- Check macOS accessibility permissions
+- Make sure the editor is running
+- Check macOS accessibility permissions in System Settings → Privacy & Security → Accessibility
 
 ## License
 
