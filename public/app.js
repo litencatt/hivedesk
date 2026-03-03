@@ -128,9 +128,12 @@ function render(data) {
   const cardHtml = (proc) => `
     <div class="card ${proc.status}" data-pid="${proc.pid}" role="button" tabindex="0">
       <div class="card-header">
-        <div class="project-name-row">
-          ${proc.gitBranch ? `<img src="git-branch.svg" class="git-branch-icon" alt="branch">` : ""}
-          <div class="project-name">${escapeHtml(proc.gitBranch ?? proc.projectName)}</div>
+        <div class="card-header-left">
+          <div class="project-repo-name">${escapeHtml(proc.projectName)}</div>
+          <div class="project-name-row">
+            ${proc.gitBranch ? `<img src="git-branch.svg" class="git-branch-icon" alt="branch">` : ""}
+            <div class="project-name">${escapeHtml(proc.gitBranch ?? proc.projectName)}</div>
+          </div>
         </div>
         <div class="card-header-icons">
           ${proc.editorApp ? `<div class="editor-badge ${proc.editorApp}"><img src="${proc.editorApp}.svg" class="editor-icon" alt="${proc.editorApp}"></div>` : ""}
