@@ -326,6 +326,8 @@ main {
   flex-direction: column;
   gap: 3px;
   margin-bottom: 8px;
+  max-height: 120px;
+  overflow-y: auto;
 }
 
 .containers-header {
@@ -333,6 +335,18 @@ main {
   font-weight: 600;
   color: var(--text-muted);
   margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.containers-count {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--text-muted) 15%, transparent);
+  color: var(--text-muted);
 }
 
 .container-item {

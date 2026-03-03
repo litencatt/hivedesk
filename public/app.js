@@ -95,7 +95,7 @@ function render(data) {
       </div>` : ""}
       ${proc.containers && proc.containers.length > 0 ? `
       <div class="card-containers">
-        <div class="containers-header">🐳 Containers</div>
+        <div class="containers-header">🐳 Containers <span class="containers-count">${proc.containers.length}</span></div>
         ${proc.containers.map(c => `
           <div class="container-item">
             <span class="container-state container-state-${escapeHtml(c.state)}">${escapeHtml(c.state)}</span>
