@@ -7,9 +7,38 @@ import { ClaudeProcess, DashboardData, EditorWindow } from "./types.js";
 
 const execFileAsync = promisify(execFile);
 
-function encodeProjectDir(projectDir: string): string {
+export function encodeProjectDir(projectDir: string): string {
   // ~/.claude/projects encodes paths by replacing / with -
   return projectDir.replace(/\//g, "-");
+}
+
+export function parseElapsedSeconds(etime: string): number {
+  // etime format: [[DD-]HH:]MM:SS
+  const parts = etime.trim().split(/[-:]/);
+  if (parts.length === 2) {
+    return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+  } else if (parts.length === 3) {
+    return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
+  } else if (parts.length === 4) {
+    return parseInt(parts[0]) * 86400 + parseInt(parts[1]) * 3600 + parseInt(parts[2]) * 60 + parseInt(parts[3]);
+  }
+  return 0;
+}
+
+export function parseStorageFolders(
+  storage: { backupWorkspaces?: { folders?: Array<{ folderUri: string }> } },
+  app: EditorWindow["app"]
+): EditorWindow[] {
+  const folders = storage.backupWorkspaces?.folders ?? [];
+  const results: EditorWindow[] = [];
+  for (const { folderUri } of folders) {
+    if (!folderUri.startsWith("file://")) continue;
+    const projectDir = decodeURIComponent(folderUri.replace("file://", "")).replace(/\/$/, "");
+    if (!projectDir) continue;
+    const projectName = projectDir.split("/").pop() ?? projectDir;
+    results.push({ app, projectDir, projectName });
+  }
+  return results;
 }
 
 async function readSessionData(projectDir: string): Promise<{ currentTask: string | null; modelName: string | null }> {
@@ -70,20 +99,6 @@ async function readSessionData(projectDir: string): Promise<{ currentTask: strin
   }
 }
 
-function parseElapsedSeconds(etime: string): number {
-  // etime format: [[DD-]HH:]MM:SS
-  const parts = etime.trim().split(/[-:]/);
-  let seconds = 0;
-  if (parts.length === 2) {
-    seconds = parseInt(parts[0]) * 60 + parseInt(parts[1]);
-  } else if (parts.length === 3) {
-    seconds = parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
-  } else if (parts.length === 4) {
-    seconds = parseInt(parts[0]) * 86400 + parseInt(parts[1]) * 3600 + parseInt(parts[2]) * 60 + parseInt(parts[3]);
-  }
-  return seconds;
-}
-
 async function enrichProcess(pid: number): Promise<Partial<ClaudeProcess>> {
   try {
     const { stdout } = await execFileAsync("lsof", ["-p", String(pid)], { maxBuffer: 10 * 1024 * 1024 });
@@ -135,43 +150,37 @@ const EDITOR_CONFIGS: Array<{ app: EditorWindow["app"]; globalStoragePath: strin
   {
     app: "vscode",
     globalStoragePath: path.join(os.homedir(), "Library/Application Support/Code/User/globalStorage/storage.json"),
-    processPattern: /Visual Studio Code/,
+    processPattern: /Visual Studio Code\.app\/Contents\/MacOS\//,
   },
   {
     app: "cursor",
     globalStoragePath: path.join(os.homedir(), "Library/Application Support/Cursor/User/globalStorage/storage.json"),
-    processPattern: /[Cc]ursor/,
+    processPattern: /Cursor\.app\/Contents\/MacOS\/Cursor/,
   },
 ];
-
-async function isEditorRunning(pattern: RegExp): Promise<boolean> {
-  try {
-    const { stdout } = await execFileAsync("ps", ["-eo", "command"]);
-    return stdout.split("\n").some(line => pattern.test(line));
-  } catch {
-    return false;
-  }
-}
 
 async function collectEditorWindows(): Promise<EditorWindow[]> {
   const results: EditorWindow[] = [];
 
+  // Single ps call for all editor checks
+  let psOutput = "";
+  try {
+    const { stdout } = await execFileAsync("ps", ["-eo", "command"]);
+    psOutput = stdout;
+  } catch {
+    return results;
+  }
+  const psLines = psOutput.split("\n");
+
   for (const { app, globalStoragePath, processPattern } of EDITOR_CONFIGS) {
-    if (!await isEditorRunning(processPattern)) continue;
+    if (!psLines.some(line => processPattern.test(line))) continue;
 
     try {
       const content = await readFile(globalStoragePath, "utf-8");
       const storage = JSON.parse(content) as {
         backupWorkspaces?: { folders?: Array<{ folderUri: string }> };
       };
-      const folders = storage.backupWorkspaces?.folders ?? [];
-      for (const { folderUri } of folders) {
-        if (!folderUri.startsWith("file://")) continue;
-        const projectDir = decodeURIComponent(folderUri.replace("file://", "")).replace(/\/$/, "");
-        if (!projectDir) continue;
-        const projectName = projectDir.split("/").pop() ?? projectDir;
-        results.push({ app, projectDir, projectName });
-      }
+      results.push(...parseStorageFolders(storage, app));
     } catch {
       continue;
     }
@@ -220,9 +229,7 @@ export async function collectProcesses(): Promise<DashboardData> {
       const projectDir = extra.projectDir ?? "";
       const projectName = projectDir ? projectDir.split("/").pop() ?? projectDir : String(proc.pid);
 
-      // Check if this is an MCP bridge process
       const isMcpBridge = MCP_BRIDGE_PATHS.some(p => projectDir.includes(p));
-
       const cpuPercent = proc.cpuPercent;
       const status: "working" | "idle" = cpuPercent > 5 ? "working" : "idle";
 
