@@ -93,11 +93,21 @@ function render(data) {
         ${proc.openFiles.slice(0, 5).map(f => `<div class="open-file">${escapeHtml(f)}</div>`).join("")}
         ${proc.openFiles.length > 5 ? `<div class="open-file open-file-more">+${proc.openFiles.length - 5} more</div>` : ""}
       </div>` : ""}
+      ${proc.containers && proc.containers.length > 0 ? `
+      <div class="card-containers">
+        <div class="containers-header">🐳 Containers <span class="containers-count">${proc.containers.length}</span></div>
+        ${proc.containers.map(c => `
+          <div class="container-item">
+            <span class="container-state container-state-${escapeHtml(c.state)}">${escapeHtml(c.state)}</span>
+            <span class="container-service">${escapeHtml(c.service)}</span>
+            <span class="container-status">${escapeHtml(c.status)}</span>
+          </div>`).join("")}
+      </div>` : ""}
       <div class="card-footer">
-        <span class="pid">PID ${proc.pid}</span>
         <button class="stats-toggle" aria-label="toggle stats">···</button>
       </div>
       <div class="card-meta">
+        <div class="meta-item">PID: <span>${proc.pid}</span></div>
         <div class="meta-item">CPU: <span>${proc.cpuPercent.toFixed(1)}%</span></div>
         <div class="meta-item">MEM: <span>${proc.memPercent.toFixed(1)}%</span></div>
         <div class="meta-item">Uptime: <span>${formatElapsed(proc.elapsedSeconds)}</span></div>

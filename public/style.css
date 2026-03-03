@@ -321,6 +321,79 @@ main {
   opacity: 0.6;
 }
 
+.card-containers {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 8px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.containers-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.containers-count {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--text-muted) 15%, transparent);
+  color: var(--text-muted);
+}
+
+.container-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-family: monospace;
+}
+
+.container-service {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.container-status {
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.container-state {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.container-state-running {
+  background: color-mix(in srgb, var(--green) 15%, transparent);
+  color: var(--green);
+}
+
+.container-state-exited {
+  background: color-mix(in srgb, #f85149 15%, transparent);
+  color: #f85149;
+}
+
+.container-state-restarting,
+.container-state-paused,
+.container-state-dead {
+  background: color-mix(in srgb, #d29922 15%, transparent);
+  color: #d29922;
+}
+
 .pid {
   font-size: 11px;
   color: var(--text-muted);
