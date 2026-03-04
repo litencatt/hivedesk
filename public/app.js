@@ -293,7 +293,7 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
-function focusEditorWindow(dir, app, cardEl) {
+function applyFocusAnimation(cardEl) {
   if (cardEl) {
     cardEl.style.opacity = "0.5";
     cardEl.style.transform = "scale(0.98)";
@@ -302,6 +302,10 @@ function focusEditorWindow(dir, app, cardEl) {
       cardEl.style.transform = "";
     }, 100);
   }
+}
+
+function focusEditorWindow(dir, app, cardEl) {
+  applyFocusAnimation(cardEl);
   fetch("/api/focus-editor", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -310,14 +314,7 @@ function focusEditorWindow(dir, app, cardEl) {
 }
 
 function focusWindow(pid, cardEl) {
-  if (cardEl) {
-    cardEl.style.opacity = "0.5";
-    cardEl.style.transform = "scale(0.98)";
-    setTimeout(() => {
-      cardEl.style.opacity = "";
-      cardEl.style.transform = "";
-    }, 100);
-  }
+  applyFocusAnimation(cardEl);
   fetch("/api/focus", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

@@ -1,19 +1,7 @@
-import { execFile } from "child_process";
-import { promisify } from "util";
 import * as path from "path";
 import * as fs from "fs";
-
-const execFileAsync = promisify(execFile);
-
-const APP_NAMES: Record<"vscode" | "cursor", string> = {
-  vscode: "Visual Studio Code",
-  cursor: "Cursor",
-};
-
-const BUNDLE_IDS: Record<"vscode" | "cursor", string> = {
-  vscode: "com.microsoft.VSCode",
-  cursor: "com.todesktop.230313mzl4w4u92",
-};
+import { execFileAsync } from "./utils/execUtils.js";
+import { EDITOR_CONFIGS } from "./editorConfig.js";
 
 const SWIFT_BINARY = path.resolve(__dirname, "../tools/focus-window/.build/release/focus-window");
 
@@ -27,15 +15,16 @@ function hasSwiftBinary(): boolean {
 }
 
 export async function focusVSCodeWindow(projectDir: string, app: "vscode" | "cursor" = "vscode"): Promise<boolean> {
-  const appName = APP_NAMES[app];
+  const config = EDITOR_CONFIGS.find(c => c.app === app);
+  if (!config) return false;
   try {
     if (hasSwiftBinary()) {
-      await execFileAsync(SWIFT_BINARY, [BUNDLE_IDS[app], projectDir]);
+      await execFileAsync(SWIFT_BINARY, [config.bundleId, projectDir]);
     } else {
       // Fallback: osascript + open -a
       await Promise.all([
-        execFileAsync("osascript", ["-e", `tell application "${appName}" to activate`]),
-        execFileAsync("open", ["-a", appName, projectDir]),
+        execFileAsync("osascript", ["-e", `tell application "${config.appName}" to activate`]),
+        execFileAsync("open", ["-a", config.appName, projectDir]),
       ]);
     }
     return true;
