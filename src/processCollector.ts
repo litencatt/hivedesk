@@ -1,13 +1,10 @@
-import { execFile } from "child_process";
-import { promisify } from "util";
 import { ClaudeProcess, DashboardData, UsageData } from "./types.js";
+import { execFileAsync } from "./utils/execUtils.js";
 import { parseElapsedSeconds } from "./utils/processUtils.js";
-import { readSessionData, collectRateLimitUsage } from "./collectors/sessionCollector.js";
-import { getGitInfo } from "./collectors/gitCollector.js";
+import { collectSessionData, collectRateLimitUsage } from "./collectors/sessionCollector.js";
+import { collectGitInfo } from "./collectors/gitCollector.js";
 import { collectDockerContainers } from "./collectors/dockerCollector.js";
 import { collectEditorWindows } from "./collectors/editorCollector.js";
-
-const execFileAsync = promisify(execFile);
 
 const MCP_BRIDGE_PATHS = ["/mcp", "mcp-server", "mcp_server", ".mcp"];
 
@@ -35,9 +32,9 @@ async function enrichProcess(pid: number): Promise<Partial<ClaudeProcess> & { in
       .filter((v, i, a) => a.indexOf(v) === i);
 
     const [{ currentTask: sessionTask, modelName, inputTokens, outputTokens }, containers, { gitBranch, gitCommonDir, prUrl }] = await Promise.all([
-      readSessionData(projectDir),
+      collectSessionData(projectDir),
       collectDockerContainers(projectDir),
-      getGitInfo(projectDir),
+      collectGitInfo(projectDir),
     ]);
     const currentTask = sessionTask ?? openFiles[0] ?? null;
 

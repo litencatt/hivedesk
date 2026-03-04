@@ -3,7 +3,7 @@ import path from "path";
 import os from "os";
 import { encodeProjectDir } from "../utils/processUtils.js";
 
-export async function readSessionData(projectDir: string): Promise<{ currentTask: string | null; modelName: string | null; inputTokens: number; outputTokens: number }> {
+export async function collectSessionData(projectDir: string): Promise<{ currentTask: string | null; modelName: string | null; inputTokens: number; outputTokens: number }> {
   try {
     const encoded = encodeProjectDir(projectDir);
     const claudeProjectsDir = path.join(os.homedir(), ".claude", "projects", encoded);

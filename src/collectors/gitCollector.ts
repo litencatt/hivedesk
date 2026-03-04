@@ -1,10 +1,7 @@
-import { execFile } from "child_process";
-import { promisify } from "util";
 import path from "path";
+import { execFileAsync } from "../utils/execUtils.js";
 
-const execFileAsync = promisify(execFile);
-
-export async function getGitInfo(projectDir: string): Promise<{
+export async function collectGitInfo(projectDir: string): Promise<{
   gitBranch: string | null;
   gitCommonDir: string | null;
   prUrl: string | null;

@@ -1,10 +1,7 @@
-import { execFile } from "child_process";
-import { promisify } from "util";
 import { access, readdir } from "fs/promises";
+import { execFileAsync } from "../utils/execUtils.js";
 import path from "path";
 import { DockerContainer } from "../types.js";
-
-const execFileAsync = promisify(execFile);
 
 const COMPOSE_FILE_NAMES = [
   "docker-compose.yml", "docker-compose.yaml",
