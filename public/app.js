@@ -149,11 +149,6 @@ function render(rawData) {
 
   const grid = document.getElementById("process-grid");
 
-  // 再レンダリング前にstats展開中のPIDを保存
-  const openStatsPids = new Set(
-    [...grid.querySelectorAll(".card-meta.open")].map(el => el.closest("[data-pid]")?.dataset.pid)
-  );
-
   if (data.processes.length === 0) {
     grid.innerHTML = '<div class="empty-state">No Claude processes found</div>';
     return;
@@ -174,7 +169,7 @@ function render(rawData) {
     }))
     .sort((a, b) => a.repoName.localeCompare(b.repoName));
 
-  const cardHtml = (proc) => `
+  const cardHtml = (proc, extraProcs = []) => `
     <div class="card ${proc.status}" data-pid="${proc.pid}" role="button" tabindex="0">
       <div class="card-header">
         <div class="card-header-left">
@@ -206,18 +201,34 @@ function render(rawData) {
         ].join(" ");
         return `<div class="card-containers">🐳 <span class="containers-count">${running.length}/${proc.containers.length}</span> ${names}</div>`;
       })() : ""}
-      <div class="card-footer">
-        <button class="stats-toggle" aria-label="toggle stats">···</button>
-      </div>
+      ${extraProcs.length > 0 ? `<div class="duplicate-pids">⚠️ 重複プロセス: PID ${extraProcs.map(p => p.pid).join(", ")}</div>` : ""}
       <div class="card-meta">
         <div class="meta-item">PID: <span>${proc.pid}</span></div>
         <div class="meta-item">CPU: <span>${proc.cpuPercent.toFixed(1)}%</span></div>
         <div class="meta-item">MEM: <span>${proc.memPercent.toFixed(1)}%</span></div>
         <div class="meta-item">Uptime: <span>${formatElapsed(proc.elapsedSeconds)}</span></div>
-        <div class="meta-item">STAT: <span>${escapeHtml(proc.stat)}</span></div>
       </div>
     </div>
   `;
+
+  // Merge duplicate processes sharing the same projectDir into one card
+  const mergeByDir = (procs) => {
+    const byDir = new Map();
+    for (const proc of procs) {
+      const key = proc.projectDir ?? String(proc.pid);
+      if (!byDir.has(key)) byDir.set(key, []);
+      byDir.get(key).push(proc);
+    }
+    return [...byDir.values()].map(dirProcs => {
+      if (dirProcs.length === 1) return { primary: dirProcs[0], extras: [] };
+      const sorted = [...dirProcs].sort((a, b) => {
+        if (a.status === "working" && b.status !== "working") return -1;
+        if (b.status === "working" && a.status !== "working") return 1;
+        return b.pid - a.pid;
+      });
+      return { primary: sorted[0], extras: sorted.slice(1) };
+    });
+  };
 
   const singles = groups.filter(g => g.procs.length === 1);
   const multiGroups = groups
@@ -228,7 +239,7 @@ function render(rawData) {
     ...multiGroups.map(({ repoName, procs }) => `
       <div class="repo-group">
         <div class="repo-group-header">${escapeHtml(repoName)}</div>
-        <div class="repo-group-cards">${procs.map(cardHtml).join("")}</div>
+        <div class="repo-group-cards">${mergeByDir(procs).map(({ primary, extras }) => cardHtml(primary, extras)).join("")}</div>
       </div>`),
     ...singles.map(({ procs }) => cardHtml(procs[0])),
   ].join("");
@@ -258,17 +269,9 @@ function render(rawData) {
 
   grid.querySelectorAll(".card[data-pid]").forEach(card => {
     const pid = parseInt(card.dataset.pid);
-    // 展開状態を復元
-    if (openStatsPids.has(String(pid))) {
-      card.querySelector(".card-meta")?.classList.add("open");
-    }
     card.addEventListener("click", () => focusWindow(pid, card));
     card.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") focusWindow(pid, card);
-    });
-    card.querySelector(".stats-toggle")?.addEventListener("click", (e) => {
-      e.stopPropagation();
-      card.querySelector(".card-meta")?.classList.toggle("open");
     });
   });
 
