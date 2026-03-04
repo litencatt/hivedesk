@@ -180,6 +180,7 @@ function render(rawData) {
           </div>
         </div>
         <div class="card-header-icons">
+          ${extraProcs.length > 0 ? `<span class="duplicate-badge">×${extraProcs.length + 1}</span>` : ""}
           ${proc.editorApp ? `<div class="editor-badge ${proc.editorApp}"><img src="${proc.editorApp}.svg" class="editor-icon" alt="${proc.editorApp}"></div>` : ""}
           <img src="claude.svg" class="claude-icon" alt="Claude">
         </div>
@@ -201,9 +202,8 @@ function render(rawData) {
         ].join(" ");
         return `<div class="card-containers">🐳 <span class="containers-count">${running.length}/${proc.containers.length}</span> ${names}</div>`;
       })() : ""}
-      ${extraProcs.length > 0 ? `<div class="duplicate-pids">⚠️ 重複プロセス: PID ${extraProcs.map(p => p.pid).join(", ")}</div>` : ""}
       <div class="card-meta">
-        <div class="meta-item">PID: <span>${proc.pid}</span></div>
+        <div class="meta-item${extraProcs.length > 0 ? " meta-pid-dup" : ""}">PID: <span>${[proc, ...extraProcs].map(p => p.pid).join(", ")}</span></div>
         <div class="meta-item">CPU: <span>${proc.cpuPercent.toFixed(1)}%</span></div>
         <div class="meta-item">MEM: <span>${proc.memPercent.toFixed(1)}%</span></div>
         <div class="meta-item">Uptime: <span>${formatElapsed(proc.elapsedSeconds)}</span></div>

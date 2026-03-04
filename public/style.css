@@ -340,14 +340,20 @@ main {
 }
 
 
-.duplicate-pids {
+.duplicate-badge {
   font-size: 11px;
-  color: #d29922;
-  background: rgba(210, 153, 34, 0.1);
-  border: 1px solid rgba(210, 153, 34, 0.3);
-  border-radius: 6px;
-  padding: 3px 8px;
-  margin-top: 6px;
+  font-weight: 700;
+  color: #f85149;
+  background: rgba(248, 81, 73, 0.12);
+  border: 1px solid rgba(248, 81, 73, 0.35);
+  border-radius: 10px;
+  padding: 1px 6px;
+}
+
+.meta-pid-dup,
+.meta-pid-dup span {
+  color: #f85149 !important;
+  font-weight: 600;
 }
 
 .card-footer {
