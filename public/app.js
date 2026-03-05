@@ -108,6 +108,7 @@ function formatTimeUntil(isoString) {
   const diffMs = new Date(isoString).getTime() - Date.now();
   if (diffMs <= 0) return "now";
   const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins === 0) return "< 1m";
   if (diffMins < 60) return `${diffMins}m`;
   const h = Math.floor(diffMins / 60);
   const m = diffMins % 60;
@@ -456,13 +457,11 @@ function renderUsage(usage) {
   }
   if (u.fiveHourPercent !== null) {
     const t = formatTimeUntil(u.fiveHourResetsAt);
-    const jst = formatJST(u.fiveHourResetsAt);
+    const jst = t && t !== "now" ? formatJST(u.fiveHourResetsAt) : null;
     const cls = u.fiveHourPercent >= 90 ? "usage-critical" : u.fiveHourPercent >= 70 ? "usage-warning" : "";
-    parts.push(`<span class="usage-limit usage-5h ${cls}">5h:${u.fiveHourPercent}%${t ? ` (${t})` : ""}${jst ? ` reset ${jst}` : ""}</span>`);
+    parts.push(`<span class="usage-limit usage-5h ${cls}">5h:${u.fiveHourPercent}%${t && t !== "now" ? ` (${t})` : ""}${jst ? ` reset ${jst}` : ""}</span>`);
   } else if (u.fiveHourTokens > 0) {
-    const t = formatTimeUntil(u.fiveHourResetsAt);
-    const jst = formatJST(u.fiveHourResetsAt);
-    parts.push(`<span class="usage-limit usage-5h">5h:${formatTokens(u.fiveHourTokens)}${t ? ` (${t})` : ""}${jst ? ` reset ${jst}` : ""}</span>`);
+    parts.push(`<span class="usage-limit usage-5h">5h:${formatTokens(u.fiveHourTokens)}</span>`);
   }
   if (u.weeklyPercent !== null) {
     const t = formatTimeUntil(u.weeklyResetsAt);
