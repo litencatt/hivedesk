@@ -1,4 +1,4 @@
-# hivedesk
+# byakugan
 
 複数の Claude Code AI エージェントをリアルタイムで監視するダッシュボードです。カードをクリックするだけで、対応する VSCode / Cursor ウィンドウに即座にフォーカスできます。
 
@@ -15,11 +15,11 @@
 
 **実際の使用例** — 同一リポジトリの worktree をグループ表示:
 
-![hivedesk スクリーンショット](./docs/screenshot.png)
+![byakugan スクリーンショット](./docs/screenshot.png)
 
 **デモモード** — すべての情報をダミーデータに置換（Demo ボタンでトグル）:
 
-![hivedesk デモ](./docs/demo.png)
+![byakugan デモ](./docs/demo.png)
 
 ## 機能
 
@@ -60,8 +60,8 @@
 ## インストール
 
 ```bash
-git clone https://github.com/litencatt/hivedesk.git
-cd hivedesk
+git clone https://github.com/litencatt/byakugan.git
+cd byakugan
 npm install
 ```
 
@@ -85,7 +85,7 @@ npm start
 ## プロジェクト構成
 
 ```
-hivedesk/
+byakugan/
 ├── src/
 │   ├── server.ts                    # Express サーバー、SSE、REST API
 │   ├── processCollector.ts          # データ収集のオーケストレーター
