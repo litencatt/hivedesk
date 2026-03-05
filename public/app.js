@@ -1,6 +1,7 @@
 let es = null;
 let demoMode = false;
 let lastData = null;
+let starredPids = new Set(JSON.parse(localStorage.getItem("starredPids") || "[]"));
 
 const DEMO_REPOS = ["project-alpha", "my-webapp", "api-service", "data-pipeline", "frontend-app", "auth-service"];
 const DEMO_BRANCHES = ["feat/user-auth", "fix/payment-bug", "docs/api-update", "refactor/db-layer", "feat/search-feature", "fix/login-issue", "feat/dashboard-v2", "chore/deps-update"];
@@ -132,77 +133,35 @@ function shortenPath(p) {
   return p;
 }
 
-function render(rawData) {
-  const data = demoMode ? demoify(rawData) : rawData;
-  document.getElementById("stat-working").textContent = `${data.totalWorking} working`;
-  document.getElementById("stat-idle").textContent = `${data.totalIdle} idle`;
-
-  const d = new Date(data.collectedAt);
-  document.getElementById("last-updated").textContent =
-    `Updated ${d.toLocaleTimeString()}`;
-
-  const usageEl = document.getElementById("usage-stats");
-  if (usageEl && data.usage) {
-    const u = data.usage;
-    const parts = [];
-    if (u.totalInputTokens > 0 || u.totalOutputTokens > 0) {
-      parts.push(`<span class="usage-tokens">↑${formatTokens(u.totalInputTokens)} ↓${formatTokens(u.totalOutputTokens)}</span>`);
-    }
-    if (u.fiveHourPercent !== null) {
-      const t = formatTimeUntil(u.fiveHourResetsAt);
-      const jst = formatJST(u.fiveHourResetsAt);
-      const cls = u.fiveHourPercent >= 90 ? "usage-critical" : u.fiveHourPercent >= 70 ? "usage-warning" : "";
-      parts.push(`<span class="usage-limit usage-5h ${cls}">5h:${u.fiveHourPercent}%${t ? ` (${t})` : ""}${jst ? ` reset ${jst}` : ""}</span>`);
-    } else if (u.fiveHourTokens > 0) {
-      const t = formatTimeUntil(u.fiveHourResetsAt);
-      const jst = formatJST(u.fiveHourResetsAt);
-      parts.push(`<span class="usage-limit usage-5h">5h:${formatTokens(u.fiveHourTokens)}${t ? ` (${t})` : ""}${jst ? ` reset ${jst}` : ""}</span>`);
-    }
-    if (u.weeklyPercent !== null) {
-      const t = formatTimeUntil(u.weeklyResetsAt);
-      const cls = u.weeklyPercent >= 90 ? "usage-critical" : u.weeklyPercent >= 70 ? "usage-warning" : "";
-      parts.push(`<span class="usage-limit usage-wk ${cls}">7d:${u.weeklyPercent}%${t ? ` (${t})` : ""}</span>`);
-    } else if (u.weeklyTokens > 0) {
-      parts.push(`<span class="usage-limit usage-wk">7d:${formatTokens(u.weeklyTokens)}</span>`);
-    }
-    if (u.authError === true) {
-      parts.push(`<span class="usage-reauth" title="claude logout &amp;&amp; claude login">🔒 要再認証</span>`);
-    }
-    usageEl.innerHTML = parts.join("");
+// Merge duplicate processes sharing the same projectDir into one entry
+function mergeByDir(procs) {
+  const byDir = new Map();
+  for (const proc of procs) {
+    const key = proc.projectDir ?? String(proc.pid);
+    if (!byDir.has(key)) byDir.set(key, []);
+    byDir.get(key).push(proc);
   }
+  return [...byDir.values()].map(dirProcs => {
+    if (dirProcs.length === 1) return { primary: dirProcs[0], extras: [] };
+    const sorted = [...dirProcs].sort((a, b) => {
+      if (a.status === "working" && b.status !== "working") return -1;
+      if (b.status === "working" && a.status !== "working") return 1;
+      return b.pid - a.pid;
+    });
+    return { primary: sorted[0], extras: sorted.slice(1) };
+  });
+}
 
-  const grid = document.getElementById("process-grid");
-
-  if (data.processes.length === 0) {
-    grid.innerHTML = '<div class="empty-state">No Claude processes found</div>';
-    return;
-  }
-
-  // Group by gitCommonDir, fallback to projectDir
-  const groupMap = new Map();
-  for (const proc of data.processes) {
-    const key = proc.gitCommonDir ?? proc.projectDir ?? String(proc.pid);
-    if (!groupMap.has(key)) groupMap.set(key, []);
-    groupMap.get(key).push(proc);
-  }
-  const groups = [...groupMap.entries()]
-    .map(([key, procs]) => {
-      const keyBase = key.replace(/\/\.git$/, "");
-      const parts = keyBase.split("/");
-      const repoName = parts[parts.length - 1] ?? key;
-      const orgRepoName = parts.length >= 2
-        ? `${parts[parts.length - 2]}/${parts[parts.length - 1]}`
-        : repoName;
-      return {
-        key,
-        repoName,
-        orgRepoName,
-        procs: procs.sort((a, b) => (a.projectName ?? "").localeCompare(b.projectName ?? "")),
-      };
-    })
-    .sort((a, b) => a.repoName.localeCompare(b.repoName));
-
-  const cardHtml = (proc, extraProcs = []) => `
+function cardHtml(proc, extraProcs = []) {
+  const running = (proc.containers ?? []).filter(c => c.state === "running");
+  const stopped = (proc.containers ?? []).filter(c => c.state !== "running");
+  const containersHtml = proc.containers && proc.containers.length > 0
+    ? `<div class="card-containers">🐳 <span class="containers-count">${running.length}/${proc.containers.length}</span> ${[
+        ...running.map(c => `<span class="container-running">${escapeHtml(c.service)}</span>`),
+        ...stopped.map(c => `<span class="container-stopped">${escapeHtml(c.service)}</span>`),
+      ].join(" ")}</div>`
+    : "";
+  return `
     <div class="card ${proc.status}" data-pid="${proc.pid}" role="button" tabindex="0">
       <div class="card-header">
         <div class="card-header-left">
@@ -226,15 +185,7 @@ function render(rawData) {
         ${proc.openFiles.slice(0, 5).map(f => `<div class="open-file">${escapeHtml(f)}</div>`).join("")}
         ${proc.openFiles.length > 5 ? `<div class="open-file open-file-more">+${proc.openFiles.length - 5} more</div>` : ""}
       </div>` : ""}
-      ${proc.containers && proc.containers.length > 0 ? (() => {
-        const running = proc.containers.filter(c => c.state === "running");
-        const stopped = proc.containers.filter(c => c.state !== "running");
-        const names = [
-          ...running.map(c => `<span class="container-running">${escapeHtml(c.service)}</span>`),
-          ...stopped.map(c => `<span class="container-stopped">${escapeHtml(c.service)}</span>`),
-        ].join(" ");
-        return `<div class="card-containers">🐳 <span class="containers-count">${running.length}/${proc.containers.length}</span> ${names}</div>`;
-      })() : ""}
+      ${containersHtml}
       <div class="card-meta">
         <div class="meta-item${extraProcs.length > 0 ? " meta-pid-dup" : ""}">PID: <span>${[proc, ...extraProcs].map(p => p.pid).join(", ")}</span></div>
         <div class="meta-item">CPU: <span>${proc.cpuPercent.toFixed(1)}%</span></div>
@@ -243,21 +194,25 @@ function render(rawData) {
       </div>
     </div>
   `;
+}
 
-  const tableRowHtml = (proc, extraProcs = [], hideProject = false) => `
+function tableRowHtml(proc, extraProcs = []) {
+  const running = (proc.containers ?? []).filter(c => c.state === "running");
+  const stopped = (proc.containers ?? []).filter(c => c.state !== "running");
+  const containersHtml = proc.containers && proc.containers.length > 0
+    ? `🐳 <span class="containers-count">${running.length}/${proc.containers.length}</span> ${[
+        ...running.map(c => `<span class="container-running">${escapeHtml(c.service)}</span>`),
+        ...stopped.map(c => `<span class="container-stopped">${escapeHtml(c.service)}</span>`),
+      ].join(" ")}`
+    : "";
+  return `
     <tr class="${proc.status}" data-pid="${proc.pid}" tabindex="0" role="button">
-      <td class="tbl-project">${hideProject ? "" : escapeHtml(orgRepo(proc.projectDir, proc.gitCommonDir))}</td>
+      <td class="tbl-star${starredPids.has(proc.pid) ? " starred" : ""}" data-star-pid="${proc.pid}">${starredPids.has(proc.pid) ? "★" : "☆"}</td>
+      <td class="tbl-project">${escapeHtml(orgRepo(proc.projectDir, proc.gitCommonDir))}</td>
       <td class="tbl-dir">${escapeHtml(shortenPath(proc.projectDir))}</td>
       <td class="tbl-branch">${proc.gitBranch ? `<span class="tbl-branch-name"><img src="git-branch.svg" class="git-branch-icon" alt="branch"> ${escapeHtml(proc.gitBranch)}</span>` : ""}</td>
       <td class="tbl-pr">${proc.prUrl ? `<a class="pr-link" href="${escapeHtml(proc.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">PR#${escapeHtml(proc.prUrl.split("/").pop() ?? "")}${proc.prTitle ? ` ${escapeHtml(proc.prTitle)}` : ""}</a>` : ""}</td>
-      <td class="tbl-containers">${proc.containers && proc.containers.length > 0 ? (() => {
-        const running = proc.containers.filter(c => c.state === "running");
-        const names = [
-          ...running.map(c => `<span class="container-running">${escapeHtml(c.service)}</span>`),
-          ...proc.containers.filter(c => c.state !== "running").map(c => `<span class="container-stopped">${escapeHtml(c.service)}</span>`),
-        ].join(" ");
-        return `🐳 <span class="containers-count">${running.length}/${proc.containers.length}</span> ${names}`;
-      })() : ""}</td>
+      <td class="tbl-containers">${containersHtml}</td>
       <td class="tbl-stat">${proc.cpuPercent.toFixed(1)}%</td>
       <td class="tbl-stat">${proc.memPercent.toFixed(1)}%</td>
       <td class="tbl-stat">${formatElapsed(proc.elapsedSeconds)}</td>
@@ -268,136 +223,209 @@ function render(rawData) {
       </td>
     </tr>
   `;
+}
 
-  // Merge duplicate processes sharing the same projectDir into one card
-  const mergeByDir = (procs) => {
-    const byDir = new Map();
-    for (const proc of procs) {
-      const key = proc.projectDir ?? String(proc.pid);
-      if (!byDir.has(key)) byDir.set(key, []);
-      byDir.get(key).push(proc);
-    }
-    return [...byDir.values()].map(dirProcs => {
-      if (dirProcs.length === 1) return { primary: dirProcs[0], extras: [] };
-      const sorted = [...dirProcs].sort((a, b) => {
-        if (a.status === "working" && b.status !== "working") return -1;
-        if (b.status === "working" && a.status !== "working") return 1;
-        return b.pid - a.pid;
-      });
-      return { primary: sorted[0], extras: sorted.slice(1) };
+function renderTable(data, grid) {
+  const tableRows = mergeByDir([...data.processes])
+    .sort((a, b) => {
+      const aStarred = starredPids.has(a.primary.pid) ? 0 : 1;
+      const bStarred = starredPids.has(b.primary.pid) ? 0 : 1;
+      if (aStarred !== bStarred) return aStarred - bStarred;
+      return orgRepo(a.primary.projectDir, a.primary.gitCommonDir)
+        .localeCompare(orgRepo(b.primary.projectDir, b.primary.gitCommonDir));
+    })
+    .map(({ primary, extras }) => tableRowHtml(primary, extras)).join("");
+
+  const editorRows = (data.editorWindows && data.editorWindows.length > 0)
+    ? `<tr class="tbl-group-row tbl-editor-group"><td colspan="10" class="tbl-group-cell">最近開いたプロジェクト</td></tr>` +
+      [...data.editorWindows]
+        .sort((a, b) => (a.projectName ?? "").localeCompare(b.projectName ?? ""))
+        .map(w => `
+          <tr class="tbl-editor-row" data-dir="${escapeHtml(w.projectDir)}" data-app="${escapeHtml(w.app)}" tabindex="0" role="button">
+            <td></td>
+            <td class="tbl-project">${escapeHtml(w.projectName)}</td>
+            <td class="tbl-path" colspan="2">${escapeHtml(shortenPath(w.projectDir))}</td>
+            <td colspan="4"></td>
+            <td class="tbl-icons"><img src="${w.app}.svg" class="editor-icon" alt="${w.app}"></td>
+          </tr>
+        `).join("")
+    : "";
+
+  grid.innerHTML = `
+    <table class="process-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Project</th>
+          <th>Dir</th>
+          <th>Branch</th>
+          <th>PR</th>
+          <th>Containers</th>
+          <th>CPU</th>
+          <th>MEM</th>
+          <th>Uptime</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>${tableRows}${editorRows}</tbody>
+    </table>
+  `;
+
+  grid.querySelectorAll(".tbl-star[data-star-pid]").forEach(cell => {
+    const pid = parseInt(cell.dataset.starPid);
+    cell.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (starredPids.has(pid)) starredPids.delete(pid);
+      else starredPids.add(pid);
+      localStorage.setItem("starredPids", JSON.stringify([...starredPids]));
+      if (lastData) render(lastData);
     });
-  };
+  });
+
+  grid.querySelectorAll("tr[data-pid]").forEach(row => {
+    const pid = parseInt(row.dataset.pid);
+    row.addEventListener("click", () => focusWindow(pid, row));
+    row.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") focusWindow(pid, row);
+    });
+  });
+
+  grid.querySelectorAll("tr[data-dir]").forEach(row => {
+    const dir = row.dataset.dir;
+    const app = row.dataset.app;
+    row.addEventListener("click", () => focusEditorWindow(dir, app, row));
+    row.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") focusEditorWindow(dir, app, row);
+    });
+  });
+}
+
+function renderCards(data, grid) {
+  const groupMap = new Map();
+  for (const proc of data.processes) {
+    const key = proc.gitCommonDir ?? proc.projectDir ?? String(proc.pid);
+    if (!groupMap.has(key)) groupMap.set(key, []);
+    groupMap.get(key).push(proc);
+  }
+  const groups = [...groupMap.entries()]
+    .map(([key, procs]) => {
+      const keyBase = key.replace(/\/\.git$/, "");
+      const parts = keyBase.split("/");
+      const repoName = parts[parts.length - 1] ?? key;
+      return {
+        key,
+        repoName,
+        procs: procs.sort((a, b) => (a.projectName ?? "").localeCompare(b.projectName ?? "")),
+      };
+    })
+    .sort((a, b) => a.repoName.localeCompare(b.repoName));
 
   const singles = groups.filter(g => g.procs.length === 1);
   const multiGroups = groups
     .filter(g => g.procs.length > 1)
     .sort((a, b) => b.procs.length - a.procs.length);
 
-  if (viewMode === "list") {
-    const tableRows = mergeByDir(
-      [...data.processes].sort((a, b) =>
-        orgRepo(a.projectDir, a.gitCommonDir).localeCompare(orgRepo(b.projectDir, b.gitCommonDir))
-      )
-    ).map(({ primary, extras }) => tableRowHtml(primary, extras)).join("");
+  const claudeHtml = [
+    ...multiGroups.map(({ repoName, procs }) => `
+      <div class="repo-group">
+        <div class="repo-group-header">${escapeHtml(repoName)}</div>
+        <div class="repo-group-cards">${mergeByDir(procs).map(({ primary, extras }) => cardHtml(primary, extras)).join("")}</div>
+      </div>`),
+    ...singles.map(({ procs }) => cardHtml(procs[0])),
+  ].join("");
 
-    const editorRows = (data.editorWindows && data.editorWindows.length > 0)
-      ? `<tr class="tbl-group-row tbl-editor-group"><td colspan="9" class="tbl-group-cell">最近開いたプロジェクト</td></tr>` +
-        [...data.editorWindows]
-          .sort((a, b) => (a.projectName ?? "").localeCompare(b.projectName ?? ""))
-          .map(w => `
-            <tr class="tbl-editor-row" data-dir="${escapeHtml(w.projectDir)}" data-app="${escapeHtml(w.app)}" tabindex="0" role="button">
-              <td class="tbl-project">${escapeHtml(w.projectName)}</td>
-              <td class="tbl-path" colspan="2">${escapeHtml(shortenPath(w.projectDir))}</td>
-              <td colspan="4"></td>
-              <td class="tbl-icons"><img src="${w.app}.svg" class="editor-icon" alt="${w.app}"></td>
-            </tr>
-          `).join("")
-      : "";
-
-    grid.innerHTML = `
-      <table class="process-table">
-        <thead>
-          <tr>
-            <th>Project</th>
-            <th>Dir</th>
-            <th>Branch</th>
-            <th>PR</th>
-            <th>Containers</th>
-            <th>CPU</th>
-            <th>MEM</th>
-            <th>Uptime</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>${tableRows}${editorRows}</tbody>
-      </table>
-    `;
-
-    grid.querySelectorAll("tr[data-pid]").forEach(row => {
-      const pid = parseInt(row.dataset.pid);
-      row.addEventListener("click", () => focusWindow(pid, row));
-      row.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") focusWindow(pid, row);
-      });
-    });
-
-    grid.querySelectorAll("tr[data-dir]").forEach(row => {
-      const dir = row.dataset.dir;
-      const app = row.dataset.app;
-      row.addEventListener("click", () => focusEditorWindow(dir, app, row));
-      row.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") focusEditorWindow(dir, app, row);
-      });
-    });
-  } else {
-    const claudeHtml = [
-      ...multiGroups.map(({ repoName, procs }) => `
-        <div class="repo-group">
-          <div class="repo-group-header">${escapeHtml(repoName)}</div>
-          <div class="repo-group-cards">${mergeByDir(procs).map(({ primary, extras }) => cardHtml(primary, extras)).join("")}</div>
-        </div>`),
-      ...singles.map(({ procs }) => cardHtml(procs[0])),
-    ].join("");
-
-    const editorOnlyHtml = (data.editorWindows && data.editorWindows.length > 0)
-      ? `<div class="repo-group">
-          <div class="repo-group-header editor-only-header">最近開いたプロジェクト</div>
-          <div class="repo-group-cards">
-            ${[...data.editorWindows]
-              .sort((a, b) => (a.projectName ?? "").localeCompare(b.projectName ?? ""))
-              .map(w => `
-                <div class="card editor-card" data-dir="${escapeHtml(w.projectDir)}" data-app="${escapeHtml(w.app)}" role="button" tabindex="0">
-                  <div class="card-header">
-                    <div class="project-name">${escapeHtml(w.projectName)}</div>
-                    <div class="card-header-icons">
-                      <div class="editor-badge ${w.app}"><img src="${w.app}.svg" class="editor-icon" alt="${w.app}"></div>
-                    </div>
+  const editorOnlyHtml = (data.editorWindows && data.editorWindows.length > 0)
+    ? `<div class="repo-group">
+        <div class="repo-group-header editor-only-header">最近開いたプロジェクト</div>
+        <div class="repo-group-cards">
+          ${[...data.editorWindows]
+            .sort((a, b) => (a.projectName ?? "").localeCompare(b.projectName ?? ""))
+            .map(w => `
+              <div class="card editor-card" data-dir="${escapeHtml(w.projectDir)}" data-app="${escapeHtml(w.app)}" role="button" tabindex="0">
+                <div class="card-header">
+                  <div class="project-name">${escapeHtml(w.projectName)}</div>
+                  <div class="card-header-icons">
+                    <div class="editor-badge ${w.app}"><img src="${w.app}.svg" class="editor-icon" alt="${w.app}"></div>
                   </div>
-                  <div class="project-dir">${escapeHtml(shortenPath(w.projectDir))}</div>
                 </div>
-              `).join("")}
-          </div>
-        </div>`
-      : "";
+                <div class="project-dir">${escapeHtml(shortenPath(w.projectDir))}</div>
+              </div>
+            `).join("")}
+        </div>
+      </div>`
+    : "";
 
-    grid.innerHTML = claudeHtml + editorOnlyHtml;
+  grid.innerHTML = claudeHtml + editorOnlyHtml;
 
-    grid.querySelectorAll(".card[data-pid]").forEach(card => {
-      const pid = parseInt(card.dataset.pid);
-      card.addEventListener("click", () => focusWindow(pid, card));
-      card.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") focusWindow(pid, card);
-      });
+  grid.querySelectorAll(".card[data-pid]").forEach(card => {
+    const pid = parseInt(card.dataset.pid);
+    card.addEventListener("click", () => focusWindow(pid, card));
+    card.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") focusWindow(pid, card);
     });
+  });
 
-    grid.querySelectorAll(".editor-card").forEach(card => {
-      const dir = card.dataset.dir;
-      const app = card.dataset.app;
-      card.addEventListener("click", () => focusEditorWindow(dir, app, card));
-      card.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") focusEditorWindow(dir, app, card);
-      });
+  grid.querySelectorAll(".editor-card").forEach(card => {
+    const dir = card.dataset.dir;
+    const app = card.dataset.app;
+    card.addEventListener("click", () => focusEditorWindow(dir, app, card));
+    card.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") focusEditorWindow(dir, app, card);
     });
+  });
+}
+
+function renderUsage(usage) {
+  const usageEl = document.getElementById("usage-stats");
+  if (!usageEl || !usage) return;
+  const u = usage;
+  const parts = [];
+  if (u.totalInputTokens > 0 || u.totalOutputTokens > 0) {
+    parts.push(`<span class="usage-tokens">↑${formatTokens(u.totalInputTokens)} ↓${formatTokens(u.totalOutputTokens)}</span>`);
+  }
+  if (u.fiveHourPercent !== null) {
+    const t = formatTimeUntil(u.fiveHourResetsAt);
+    const jst = formatJST(u.fiveHourResetsAt);
+    const cls = u.fiveHourPercent >= 90 ? "usage-critical" : u.fiveHourPercent >= 70 ? "usage-warning" : "";
+    parts.push(`<span class="usage-limit usage-5h ${cls}">5h:${u.fiveHourPercent}%${t ? ` (${t})` : ""}${jst ? ` reset ${jst}` : ""}</span>`);
+  } else if (u.fiveHourTokens > 0) {
+    const t = formatTimeUntil(u.fiveHourResetsAt);
+    const jst = formatJST(u.fiveHourResetsAt);
+    parts.push(`<span class="usage-limit usage-5h">5h:${formatTokens(u.fiveHourTokens)}${t ? ` (${t})` : ""}${jst ? ` reset ${jst}` : ""}</span>`);
+  }
+  if (u.weeklyPercent !== null) {
+    const t = formatTimeUntil(u.weeklyResetsAt);
+    const cls = u.weeklyPercent >= 90 ? "usage-critical" : u.weeklyPercent >= 70 ? "usage-warning" : "";
+    parts.push(`<span class="usage-limit usage-wk ${cls}">7d:${u.weeklyPercent}%${t ? ` (${t})` : ""}</span>`);
+  } else if (u.weeklyTokens > 0) {
+    parts.push(`<span class="usage-limit usage-wk">7d:${formatTokens(u.weeklyTokens)}</span>`);
+  }
+  if (u.authError === true) {
+    parts.push(`<span class="usage-reauth" title="claude logout &amp;&amp; claude login">🔒 要再認証</span>`);
+  }
+  usageEl.innerHTML = parts.join("");
+}
+
+function render(rawData) {
+  const data = demoMode ? demoify(rawData) : rawData;
+
+  document.getElementById("stat-working").textContent = `${data.totalWorking} working`;
+  document.getElementById("stat-idle").textContent = `${data.totalIdle} idle`;
+  document.getElementById("last-updated").textContent =
+    `Updated ${new Date(data.collectedAt).toLocaleTimeString()}`;
+  renderUsage(data.usage);
+
+  const grid = document.getElementById("process-grid");
+
+  if (data.processes.length === 0) {
+    grid.innerHTML = '<div class="empty-state">No Claude processes found</div>';
+    return;
+  }
+
+  if (viewMode === "list") {
+    renderTable(data, grid);
+  } else {
+    renderCards(data, grid);
   }
 }
 

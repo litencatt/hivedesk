@@ -619,6 +619,27 @@ main {
   vertical-align: middle;
 }
 
+.tbl-star {
+  width: 1%;
+  white-space: nowrap;
+  text-align: center;
+  padding: 8px 6px 8px 12px;
+  font-size: 14px;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0.3;
+}
+
+.tbl-star:hover {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.tbl-star.starred {
+  color: #e3b341;
+  opacity: 1;
+}
+
 .tbl-project {
   font-weight: 600;
   font-family: monospace;
