@@ -5,10 +5,12 @@ export async function collectGitInfo(projectDir: string): Promise<{
   gitBranch: string | null;
   gitCommonDir: string | null;
   prUrl: string | null;
+  prTitle: string | null;
 }> {
   let gitBranch: string | null = null;
   let gitCommonDir: string | null = null;
   let prUrl: string | null = null;
+  let prTitle: string | null = null;
   try {
     const [{ stdout: branchOut }, { stdout: commonDirOut }] = await Promise.all([
       execFileAsync("git", ["-C", projectDir, "rev-parse", "--abbrev-ref", "HEAD"], { timeout: 2000 }),
@@ -24,13 +26,15 @@ export async function collectGitInfo(projectDir: string): Promise<{
     if (gitBranch && gitBranch !== "HEAD" && gitBranch !== "main" && gitBranch !== "master") {
       try {
         const { stdout: prOut } = await execFileAsync(
-          "gh", ["pr", "view", "--json", "url", "-q", ".url"],
+          "gh", ["pr", "view", "--json", "url,title", "-q", "[.url,.title] | join(\"\\t\")"],
           { cwd: projectDir, timeout: 3000 }
         );
-        prUrl = prOut.trim() || null;
+        const parts = prOut.trim().split("\t");
+        prUrl = parts[0] || null;
+        prTitle = parts[1] || null;
       } catch { /* no PR or gh not available */ }
     }
   } catch { /* not a git repo or git not available */ }
 
-  return { gitBranch, gitCommonDir, prUrl };
+  return { gitBranch, gitCommonDir, prUrl, prTitle };
 }
