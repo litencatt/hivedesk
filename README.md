@@ -1,4 +1,4 @@
-# hivedesk
+# byakugan
 
 A real-time dashboard for monitoring multiple Claude Code AI agents running in parallel. Click any card to instantly focus the corresponding VSCode / Cursor window.
 
@@ -15,11 +15,11 @@ Built for developers who juggle multiple projects simultaneously. **macOS only.*
 
 **Real usage** — multiple worktrees of the same repository grouped together:
 
-![hivedesk screenshot](./docs/screenshot.png)
+![byakugan screenshot](./docs/screenshot.png)
 
 **Demo mode** — all sensitive info replaced with dummy data (toggle with the Demo button):
 
-![hivedesk demo](./docs/demo.png)
+![byakugan demo](./docs/demo.png)
 
 ## Features
 
@@ -60,8 +60,8 @@ Each Claude Code process appears as a card showing:
 ## Installation
 
 ```bash
-git clone https://github.com/litencatt/hivedesk.git
-cd hivedesk
+git clone https://github.com/litencatt/byakugan.git
+cd byakugan
 npm install
 ```
 
@@ -85,7 +85,7 @@ npm start
 ## Project Structure
 
 ```
-hivedesk/
+byakugan/
 ├── src/
 │   ├── server.ts                    # Express server, SSE, REST API
 │   ├── processCollector.ts          # Orchestrates data collection

@@ -1,11 +1,11 @@
 {
-  "name": "hivedesk",
+  "name": "byakugan",
   "version": "0.0.1",
   "description": "Dashboard to monitor AI agent processes and focus IDE windows",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/litencatt/hivedesk"
+    "url": "https://github.com/litencatt/byakugan"
   },
   "scripts": {
     "build": "tsc && npm run build:swift",
