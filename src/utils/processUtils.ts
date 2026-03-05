@@ -1,8 +1,8 @@
 import { EditorWindow } from "../types.js";
 
 export function encodeProjectDir(projectDir: string): string {
-  // ~/.claude/projects encodes paths by replacing / with -
-  return projectDir.replace(/\//g, "-");
+  // ~/.claude/projects encodes paths by replacing all non-alphanumeric characters with -
+  return projectDir.replace(/[^a-zA-Z0-9]/g, "-");
 }
 
 export function parseElapsedSeconds(etime: string): number {
