@@ -118,17 +118,20 @@ type OAuthUsageResult = {
 
 type OAuthUsageResponse =
   | { ok: true; data: OAuthUsageResult }
-  | { ok: false; error: 'auth' | 'ratelimit' | 'other' };
+  | { ok: false; error: 'auth' | 'ratelimit' | 'other'; retryAfterMs?: number };
 
 // Module-level cache for OAuth usage results
 let oauthCache: {
   result: OAuthUsageResult | null;
   error: 'auth' | 'ratelimit' | 'other' | null;
   fetchedAt: number;
+  consecutiveFailures: number;
+  retryAfterMs: number | null;
 } | null = null;
 
-const CACHE_TTL_SUCCESS_MS = 30 * 1000;
-const CACHE_TTL_FAILURE_MS = 15 * 1000;
+const CACHE_TTL_SUCCESS_MS = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL_FAILURE_BASE_MS = 15 * 1000;
+const CACHE_TTL_FAILURE_MAX_MS = 60 * 60 * 1000; // 1 hour cap
 
 function fetchOAuthUsage(accessToken: string): Promise<OAuthUsageResponse> {
   return new Promise((resolve) => {
@@ -164,7 +167,18 @@ function fetchOAuthUsage(accessToken: string): Promise<OAuthUsageResponse> {
         } else if (res.statusCode === 401 || res.statusCode === 403) {
           resolve({ ok: false, error: 'auth' });
         } else if (res.statusCode === 429) {
-          resolve({ ok: false, error: 'ratelimit' });
+          const retryAfter = res.headers['retry-after'];
+          let retryAfterMs: number | undefined;
+          if (retryAfter) {
+            const secs = parseInt(String(retryAfter), 10);
+            if (!isNaN(secs)) {
+              retryAfterMs = secs * 1000;
+            } else {
+              const date = new Date(retryAfter).getTime();
+              if (!isNaN(date)) retryAfterMs = Math.max(0, date - Date.now());
+            }
+          }
+          resolve({ ok: false, error: 'ratelimit', retryAfterMs });
         } else {
           resolve({ ok: false, error: 'other' });
         }
@@ -236,7 +250,22 @@ async function collectSessionTokens(): Promise<{
   return { fiveHourTokens, weeklyTokens, fiveHourResetsAt };
 }
 
+// Set to false to temporarily disable OAuth usage API calls (e.g. during persistent 429)
+// Set back to true to re-enable; stale failure cache is cleared automatically on re-enable.
+let oauthFetchEnabled = false;
+let _prevOauthFetchEnabled = false;
+
 async function getCachedOAuthUsage(): Promise<OAuthUsageResponse | null> {
+  if (!oauthFetchEnabled) {
+    _prevOauthFetchEnabled = false;
+    return null;
+  }
+  // Clear stale failure cache when re-enabling
+  if (!_prevOauthFetchEnabled) {
+    oauthCache = null;
+    _prevOauthFetchEnabled = true;
+  }
+
   const now = Date.now();
 
   if (oauthCache) {
@@ -249,8 +278,14 @@ async function getCachedOAuthUsage(): Promise<OAuthUsageResponse | null> {
     } else if (oauthCache.error === 'auth') {
       // Auth errors are never cached — fall through to fetch
     } else if (oauthCache.error !== null) {
-      // ratelimit / other: cache for failure TTL
-      if (age < CACHE_TTL_FAILURE_MS) {
+      // Use Retry-After if available and > 0, otherwise exponential backoff
+      const backoff = (oauthCache.retryAfterMs !== null && oauthCache.retryAfterMs > 0)
+        ? oauthCache.retryAfterMs
+        : Math.min(
+            CACHE_TTL_FAILURE_BASE_MS * Math.pow(2, oauthCache.consecutiveFailures - 1),
+            CACHE_TTL_FAILURE_MAX_MS
+          );
+      if (age < backoff) {
         return { ok: false, error: oauthCache.error };
       }
     }
@@ -262,12 +297,14 @@ async function getCachedOAuthUsage(): Promise<OAuthUsageResponse | null> {
   const response = await fetchOAuthUsage(token);
 
   if (response.ok) {
-    oauthCache = { result: response.data, error: null, fetchedAt: now };
+    oauthCache = { result: response.data, error: null, fetchedAt: now, consecutiveFailures: 0, retryAfterMs: null };
   } else if (response.error === 'auth') {
     // Do not cache auth errors
     oauthCache = null;
   } else {
-    oauthCache = { result: null, error: response.error, fetchedAt: now };
+    const prev = oauthCache?.consecutiveFailures ?? 0;
+    const retryAfterMs = response.retryAfterMs ?? null;
+    oauthCache = { result: null, error: response.error, fetchedAt: now, consecutiveFailures: prev + 1, retryAfterMs };
   }
 
   return response;
