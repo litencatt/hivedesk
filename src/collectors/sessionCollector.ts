@@ -225,6 +225,10 @@ async function collectSessionTokens(): Promise<{
     }));
   }));
 
+  // Claudeの5時間制限はスライディングウィンドウ方式（固定時刻区切りではない）。
+  // リセット時刻 = 窓内の最古エントリのタイムスタンプ + 5時間。
+  // そのためリセット時刻はキリの良い時間にならない。
+  // 例: 09:05 に最初のトークンを使った場合 → 14:05 にその分の制限が解放される
   const fiveHourResetsAt = oldestFiveHourTs
     ? new Date(oldestFiveHourTs + 5 * 60 * 60 * 1000).toISOString()
     : null;
