@@ -31,8 +31,9 @@ function updateHiddenColStyles() {
   COL_DEFS.forEach((c, i) => {
     if (hiddenColumns.has(c.key)) {
       const n = i + 1;
-      rules.push(`.process-table th:nth-child(${n}) { padding: 4px 0 !important; }`);
-      rules.push(`.process-table td:nth-child(${n}) { padding: 0 !important; overflow: hidden; }`);
+      rules.push(`.process-table th:nth-child(${n}), .process-table td:nth-child(${n}) { width: 14px !important; max-width: 14px !important; min-width: 14px !important; padding: 0 !important; overflow: hidden; }`);
+      rules.push(`.process-table td:nth-child(${n}) > * { display: none !important; }`);
+      rules.push(`.process-table td:nth-child(${n}) { font-size: 0 !important; color: transparent !important; }`);
     }
   });
   styleEl.textContent = rules.join("\n");
