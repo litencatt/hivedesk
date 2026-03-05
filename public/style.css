@@ -539,3 +539,155 @@ main {
 .editor-badge.cursor {
   background: transparent;
 }
+
+.view-toggle {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.5;
+  letter-spacing: 0.3px;
+}
+
+.view-toggle:hover {
+  opacity: 0.9;
+}
+
+.view-toggle.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  opacity: 1;
+}
+
+/* Table view */
+.process-grid.list {
+  display: block;
+}
+
+.process-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.process-table thead th {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.process-table tbody tr[data-pid],
+.process-table tbody tr[data-dir] {
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  opacity: 0.8;
+  transition: background 0.1s, opacity 0.08s;
+}
+
+.process-table tbody tr[data-pid]:hover,
+.process-table tbody tr[data-dir]:hover {
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+  opacity: 1;
+}
+
+.process-table tbody tr.working {
+  opacity: 1;
+}
+
+.process-table tbody tr.working td:first-child {
+  border-left: 2px solid var(--working-border);
+}
+
+.process-table tbody tr.idle td:first-child {
+  border-left: 2px solid transparent;
+}
+
+.process-table td {
+  padding: 8px 12px;
+  vertical-align: middle;
+}
+
+.tbl-project {
+  font-weight: 600;
+  font-family: monospace;
+  white-space: nowrap;
+}
+
+.tbl-dir {
+  font-family: monospace;
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.tbl-branch-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: monospace;
+  font-size: 13px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.tbl-model {
+  font-family: monospace;
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.tbl-pr {
+  max-width: 320px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tbl-stat {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-family: monospace;
+  white-space: nowrap;
+}
+
+.tbl-icons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tbl-path {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-family: monospace;
+}
+
+.tbl-group-row td {
+  padding: 10px 12px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-bottom: none;
+}
+
+.tbl-editor-group td {
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.tbl-editor-row {
+  opacity: 0.6;
+}
+
+.tbl-editor-row:hover {
+  opacity: 1 !important;
+}
