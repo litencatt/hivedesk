@@ -2,6 +2,7 @@ let es = null;
 let demoMode = false;
 let lastData = null;
 let starredPids = new Set(JSON.parse(localStorage.getItem("starredPids") || "[]"));
+let editorSectionCollapsed = localStorage.getItem("editorSectionCollapsed") === "true";
 
 const DEMO_REPOS = ["project-alpha", "my-webapp", "api-service", "data-pipeline", "frontend-app", "auth-service"];
 const DEMO_BRANCHES = ["feat/user-auth", "fix/payment-bug", "docs/api-update", "refactor/db-layer", "feat/search-feature", "fix/login-issue", "feat/dashboard-v2", "chore/deps-update"];
@@ -237,8 +238,12 @@ function renderTable(data, grid) {
     .map(({ primary, extras }) => tableRowHtml(primary, extras)).join("");
 
   const editorRows = (data.editorWindows && data.editorWindows.length > 0)
-    ? `<tr class="tbl-group-row tbl-editor-group"><td colspan="10" class="tbl-group-cell">最近開いたプロジェクト</td></tr>` +
-      [...data.editorWindows]
+    ? `<tr class="tbl-group-row tbl-editor-group tbl-editor-toggle" tabindex="0" role="button">
+        <td colspan="10" class="tbl-group-cell">
+          <span class="tbl-collapse-icon">${editorSectionCollapsed ? "▶" : "▼"}</span> 最近開いたプロジェクト
+        </td>
+       </tr>` +
+      (editorSectionCollapsed ? "" : [...data.editorWindows]
         .sort((a, b) => (a.projectName ?? "").localeCompare(b.projectName ?? ""))
         .map(w => `
           <tr class="tbl-editor-row" data-dir="${escapeHtml(w.projectDir)}" data-app="${escapeHtml(w.app)}" tabindex="0" role="button">
@@ -248,7 +253,7 @@ function renderTable(data, grid) {
             <td colspan="4"></td>
             <td class="tbl-icons"><img src="${w.app}.svg" class="editor-icon" alt="${w.app}"></td>
           </tr>
-        `).join("")
+        `).join(""))
     : "";
 
   grid.innerHTML = `
@@ -289,6 +294,19 @@ function renderTable(data, grid) {
       if (e.key === "Enter" || e.key === " ") focusWindow(pid, row);
     });
   });
+
+  const toggleRow = grid.querySelector(".tbl-editor-toggle");
+  if (toggleRow) {
+    const toggle = () => {
+      editorSectionCollapsed = !editorSectionCollapsed;
+      localStorage.setItem("editorSectionCollapsed", String(editorSectionCollapsed));
+      if (lastData) render(lastData);
+    };
+    toggleRow.addEventListener("click", toggle);
+    toggleRow.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") toggle();
+    });
+  }
 
   grid.querySelectorAll("tr[data-dir]").forEach(row => {
     const dir = row.dataset.dir;

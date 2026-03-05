@@ -620,9 +620,13 @@ main {
 }
 
 .tbl-star {
-  width: 1%;
+  width: 24px;
+  min-width: 24px;
+  max-width: 24px;
   white-space: nowrap;
   text-align: center;
+  padding-left: 2px;
+  padding-right: 2px;
   padding: 8px 6px 8px 12px;
   font-size: 14px;
   color: var(--text-muted);
@@ -708,6 +712,20 @@ main {
 .tbl-editor-group td {
   padding-top: 16px;
   border-top: 1px solid var(--border);
+}
+
+.tbl-editor-toggle {
+  cursor: pointer;
+  user-select: none;
+}
+
+.tbl-editor-toggle:hover td {
+  color: var(--accent);
+}
+
+.tbl-collapse-icon {
+  font-size: 10px;
+  margin-right: 4px;
 }
 
 .tbl-editor-row {
