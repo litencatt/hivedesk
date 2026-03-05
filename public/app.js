@@ -145,7 +145,7 @@ function render(rawData) {
       const cls = u.weeklyPercent >= 90 ? "usage-critical" : u.weeklyPercent >= 70 ? "usage-warning" : "";
       parts.push(`<span class="usage-limit usage-wk ${cls}">7d:${u.weeklyPercent}%${t ? ` (${t})` : ""}</span>`);
     }
-    if (u.fiveHourPercent === null && u.weeklyPercent === null) {
+    if (u.authError === true) {
       parts.push(`<span class="usage-reauth" title="claude logout &amp;&amp; claude login">🔒 要再認証</span>`);
     }
     usageEl.innerHTML = parts.join("");

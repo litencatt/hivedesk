@@ -109,12 +109,28 @@ function getOAuthToken(): string | null {
   return null;
 }
 
-function fetchOAuthUsage(accessToken: string): Promise<{
+type OAuthUsageResult = {
   fiveHourPercent: number;
   weeklyPercent: number;
   fiveHourResetsAt: string | null;
   weeklyResetsAt: string | null;
-} | null> {
+};
+
+type OAuthUsageResponse =
+  | { ok: true; data: OAuthUsageResult }
+  | { ok: false; error: 'auth' | 'ratelimit' | 'other' };
+
+// Module-level cache for OAuth usage results
+let oauthCache: {
+  result: OAuthUsageResult | null;
+  error: 'auth' | 'ratelimit' | 'other' | null;
+  fetchedAt: number;
+} | null = null;
+
+const CACHE_TTL_SUCCESS_MS = 30 * 1000;
+const CACHE_TTL_FAILURE_MS = 15 * 1000;
+
+function fetchOAuthUsage(accessToken: string): Promise<OAuthUsageResponse> {
   return new Promise((resolve) => {
     const req = https.request({
       hostname: "api.anthropic.com",
@@ -136,19 +152,26 @@ function fetchOAuthUsage(accessToken: string): Promise<{
             const clamp = (v: number | undefined) =>
               v == null || !isFinite(v) ? 0 : Math.max(0, Math.min(100, v));
             resolve({
-              fiveHourPercent: clamp(parsed.five_hour?.utilization),
-              weeklyPercent: clamp(parsed.seven_day?.utilization),
-              fiveHourResetsAt: parsed.five_hour?.resets_at ?? null,
-              weeklyResetsAt: parsed.seven_day?.resets_at ?? null,
+              ok: true,
+              data: {
+                fiveHourPercent: clamp(parsed.five_hour?.utilization),
+                weeklyPercent: clamp(parsed.seven_day?.utilization),
+                fiveHourResetsAt: parsed.five_hour?.resets_at ?? null,
+                weeklyResetsAt: parsed.seven_day?.resets_at ?? null,
+              },
             });
-          } catch { resolve(null); }
+          } catch { resolve({ ok: false, error: 'other' }); }
+        } else if (res.statusCode === 401 || res.statusCode === 403) {
+          resolve({ ok: false, error: 'auth' });
+        } else if (res.statusCode === 429) {
+          resolve({ ok: false, error: 'ratelimit' });
         } else {
-          resolve(null);
+          resolve({ ok: false, error: 'other' });
         }
       });
     });
-    req.on("error", () => resolve(null));
-    req.on("timeout", () => { req.destroy(); resolve(null); });
+    req.on("error", () => resolve({ ok: false, error: 'other' }));
+    req.on("timeout", () => { req.destroy(); resolve({ ok: false, error: 'other' }); });
     req.end();
   });
 }
@@ -200,6 +223,43 @@ async function collectSessionTokens(): Promise<{
   return { fiveHourTokens, weeklyTokens };
 }
 
+async function getCachedOAuthUsage(): Promise<OAuthUsageResponse | null> {
+  const now = Date.now();
+
+  if (oauthCache) {
+    const age = now - oauthCache.fetchedAt;
+    if (oauthCache.result !== null) {
+      // Successful cache
+      if (age < CACHE_TTL_SUCCESS_MS) {
+        return { ok: true, data: oauthCache.result };
+      }
+    } else if (oauthCache.error === 'auth') {
+      // Auth errors are never cached — fall through to fetch
+    } else if (oauthCache.error !== null) {
+      // ratelimit / other: cache for failure TTL
+      if (age < CACHE_TTL_FAILURE_MS) {
+        return { ok: false, error: oauthCache.error };
+      }
+    }
+  }
+
+  const token = getOAuthToken();
+  if (!token) return null;
+
+  const response = await fetchOAuthUsage(token);
+
+  if (response.ok) {
+    oauthCache = { result: response.data, error: null, fetchedAt: now };
+  } else if (response.error === 'auth') {
+    // Do not cache auth errors
+    oauthCache = null;
+  } else {
+    oauthCache = { result: null, error: response.error, fetchedAt: now };
+  }
+
+  return response;
+}
+
 export async function collectRateLimitUsage(): Promise<{
   fiveHourTokens: number;
   weeklyTokens: number;
@@ -207,15 +267,15 @@ export async function collectRateLimitUsage(): Promise<{
   weeklyPercent: number | null;
   fiveHourResetsAt: string | null;
   weeklyResetsAt: string | null;
+  authError: boolean;
 }> {
-  const [tokenData, apiData] = await Promise.all([
+  const [tokenData, apiResponse] = await Promise.all([
     collectSessionTokens().catch(() => ({ fiveHourTokens: 0, weeklyTokens: 0 })),
-    (async () => {
-      const token = getOAuthToken();
-      if (!token) return null;
-      return fetchOAuthUsage(token);
-    })(),
+    getCachedOAuthUsage(),
   ]);
+
+  const apiData = apiResponse?.ok ? apiResponse.data : null;
+  const authError = apiResponse !== null && !apiResponse.ok && apiResponse.error === 'auth';
 
   return {
     fiveHourTokens: tokenData.fiveHourTokens,
@@ -224,5 +284,6 @@ export async function collectRateLimitUsage(): Promise<{
     weeklyPercent: apiData?.weeklyPercent ?? null,
     fiveHourResetsAt: apiData?.fiveHourResetsAt ?? null,
     weeklyResetsAt: apiData?.weeklyResetsAt ?? null,
+    authError,
   };
 }

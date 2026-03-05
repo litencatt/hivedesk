@@ -42,6 +42,7 @@ export interface UsageData {
   weeklyPercent: number | null;
   fiveHourResetsAt: string | null;
   weeklyResetsAt: string | null;
+  authError: boolean;
 }
 
 export interface DashboardData {
