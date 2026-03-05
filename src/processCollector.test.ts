@@ -9,6 +9,15 @@ describe("encodeProjectDir", () => {
   it("handles path with no leading slash", () => {
     expect(encodeProjectDir("foo/bar")).toBe("foo-bar");
   });
+
+  it("replaces dots with dashes", () => {
+    expect(encodeProjectDir("/Users/nakamura.k/.ghq")).toBe("-Users-nakamura-k--ghq");
+  });
+
+  it("replaces all non-alphanumeric characters to match ~/.claude/projects encoding", () => {
+    expect(encodeProjectDir("/Users/nakamura.k/.ghq/git.pepabo.com/hosting/muu.ws/ws6"))
+      .toBe("-Users-nakamura-k--ghq-git-pepabo-com-hosting-muu-ws-ws6");
+  });
 });
 
 describe("parseElapsedSeconds", () => {
@@ -44,8 +53,8 @@ describe("parseStorageFolders", () => {
     };
     const result = parseStorageFolders(storage, "vscode");
     expect(result).toHaveLength(2);
-    expect(result[0]).toEqual({ app: "vscode", projectDir: "/Users/foo/bar", projectName: "bar" });
-    expect(result[1]).toEqual({ app: "vscode", projectDir: "/Users/foo/baz", projectName: "baz" });
+    expect(result[0]).toEqual({ app: "vscode", projectDir: "/Users/foo/bar", projectName: "bar", gitBranch: null, gitCommonDir: null, prUrl: null, prTitle: null });
+    expect(result[1]).toEqual({ app: "vscode", projectDir: "/Users/foo/baz", projectName: "baz", gitBranch: null, gitCommonDir: null, prUrl: null, prTitle: null });
   });
 
   it("skips non-file:// URIs", () => {
@@ -79,7 +88,7 @@ describe("parseStorageFolders", () => {
       },
     };
     const result = parseStorageFolders(storage, "cursor");
-    expect(result[0]).toEqual({ app: "cursor", projectDir: "/Users/foo/my project", projectName: "my project" });
+    expect(result[0]).toEqual({ app: "cursor", projectDir: "/Users/foo/my project", projectName: "my project", gitBranch: null, gitCommonDir: null, prUrl: null, prTitle: null });
   });
 
   it("returns empty array when backupWorkspaces is missing", () => {

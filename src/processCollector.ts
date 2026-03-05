@@ -31,16 +31,16 @@ async function enrichProcess(pid: number): Promise<Partial<ClaudeProcess> & { in
       .map(p => p.replace(projectDir + "/", ""))
       .filter((v, i, a) => a.indexOf(v) === i);
 
-    const [{ currentTask: sessionTask, modelName, inputTokens, outputTokens }, containers, { gitBranch, gitCommonDir, prUrl, prTitle }] = await Promise.all([
+    const [{ currentTask: sessionTask, modelName, inputTokens, outputTokens, claudeStatus }, containers, { gitBranch, gitCommonDir, prUrl, prTitle }] = await Promise.all([
       collectSessionData(projectDir),
       collectDockerContainers(projectDir),
       collectGitInfo(projectDir),
     ]);
     const currentTask = sessionTask ?? openFiles[0] ?? null;
 
-    return { projectDir, openFiles, currentTask, gitBranch, gitCommonDir, modelName, prUrl, prTitle, containers, inputTokens, outputTokens };
+    return { projectDir, openFiles, currentTask, gitBranch, gitCommonDir, modelName, prUrl, prTitle, containers, inputTokens, outputTokens, claudeStatus };
   } catch {
-    return { projectDir: "", openFiles: [], currentTask: null, inputTokens: 0, outputTokens: 0 };
+    return { projectDir: "", openFiles: [], currentTask: null, inputTokens: 0, outputTokens: 0, claudeStatus: null };
   }
 }
 
@@ -105,6 +105,7 @@ export async function collectProcesses(): Promise<DashboardData> {
             modelName: extra.modelName ?? null,
             prUrl: extra.prUrl ?? null,
             prTitle: extra.prTitle ?? null,
+            claudeStatus: extra.claudeStatus ?? null,
             editorApp: null,
             isMcpBridge,
             containers: extra.containers ?? [],

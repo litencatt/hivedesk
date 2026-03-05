@@ -12,6 +12,7 @@ export interface ClaudeProcess {
   cpuPercent: number;
   memPercent: number;
   status: "working" | "idle";
+  claudeStatus: "thinking" | "tool_use" | "executing" | "waiting" | null;
   stat: string;
   elapsedTime: string;
   elapsedSeconds: number;
