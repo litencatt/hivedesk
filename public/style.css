@@ -735,6 +735,7 @@ main {
 .process-table thead th[data-col-toggle] {
   cursor: pointer;
   user-select: none;
+  text-decoration: underline;
 }
 
 .process-table thead th[data-col-toggle]:not(.col-toggled):hover {
@@ -748,6 +749,7 @@ main {
   opacity: 0.6;
   overflow: hidden;
   white-space: nowrap;
+  text-decoration: underline;
 }
 
 .tbl-editor-row {

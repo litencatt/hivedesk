@@ -31,8 +31,8 @@ function updateHiddenColStyles() {
   COL_DEFS.forEach((c, i) => {
     if (hiddenColumns.has(c.key)) {
       const n = i + 1;
-      rules.push(`.process-table th:nth-child(${n}) { padding: 4px 0 !important; }`);
-      rules.push(`.process-table td:nth-child(${n}) { padding: 0 !important; overflow: hidden; }`);
+      rules.push(`.process-table td:nth-child(${n}) { width: 0 !important; max-width: 0 !important; min-width: 0 !important; padding: 0 !important; overflow: hidden; font-size: 0 !important; color: transparent !important; }`);
+      rules.push(`.process-table td:nth-child(${n}) > * { display: none !important; }`);
     }
   });
   styleEl.textContent = rules.join("\n");
@@ -298,14 +298,14 @@ function renderTable(data, grid) {
 
   const colgroupHtml = `<colgroup>${COL_DEFS.map(c => {
     const hidden = hiddenColumns.has(c.key);
-    const w = hidden ? HIDDEN_COL_W : c.fixed;
+    const w = hidden ? null : c.fixed;
     return `<col${w ? ` style="width:${w}"` : ""}>`;
   }).join("")}</colgroup>`;
 
   const theadHtml = `<thead><tr>${COL_DEFS.map(c => {
     const hidden = hiddenColumns.has(c.key);
     const cls = [c.stat && !hidden ? "tbl-stat" : "", hidden ? "col-toggled" : ""].filter(Boolean).join(" ");
-    return `<th${cls ? ` class="${cls}"` : ""} data-col-toggle="${c.key}" title="${c.label || c.key}">${hidden ? "▸" : c.label}</th>`;
+    return `<th${cls ? ` class="${cls}"` : ""} data-col-toggle="${c.key}" title="${c.label || c.key}">${c.label}</th>`;
   }).join("")}</tr></thead>`;
 
   grid.innerHTML = `
