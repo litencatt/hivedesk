@@ -107,6 +107,13 @@ function formatElapsed(seconds) {
   return `${h}h ${m}m`;
 }
 
+function orgRepo(p) {
+  if (!p) return "";
+  const parts = p.replace(/\/$/, "").split("/");
+  if (parts.length >= 2) return `${parts[parts.length - 2]}/${parts[parts.length - 1]}`;
+  return parts[parts.length - 1] ?? "";
+}
+
 function shortenPath(p) {
   if (!p) return "";
   const home = "/Users/";
@@ -223,7 +230,7 @@ function render(rawData) {
 
   const tableRowHtml = (proc, extraProcs = []) => `
     <tr class="${proc.status}" data-pid="${proc.pid}" tabindex="0" role="button">
-      <td class="tbl-project">${escapeHtml(proc.projectName)}</td>
+      <td class="tbl-project">${escapeHtml(orgRepo(proc.projectDir))}</td>
       <td class="tbl-branch">${proc.gitBranch ? `<span class="tbl-branch-name"><img src="git-branch.svg" class="git-branch-icon" alt="branch"> ${escapeHtml(proc.gitBranch)}</span>` : ""}</td>
       <td class="tbl-pr">${proc.prUrl ? `<a class="pr-link" href="${escapeHtml(proc.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">PR#${escapeHtml(proc.prUrl.split("/").pop() ?? "")}${proc.prTitle ? ` ${escapeHtml(proc.prTitle)}` : ""}</a>` : ""}</td>
       <td class="tbl-stat">${proc.cpuPercent.toFixed(1)}%</td>
@@ -414,11 +421,11 @@ function applyViewMode() {
   if (viewMode === "list") {
     grid.classList.add("list");
     btn.classList.add("active");
-    btn.textContent = "Grid";
+    btn.textContent = "Card";
   } else {
     grid.classList.remove("list");
     btn.classList.remove("active");
-    btn.textContent = "List";
+    btn.textContent = "Table";
   }
 }
 
