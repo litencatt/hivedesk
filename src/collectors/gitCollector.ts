@@ -1,12 +1,18 @@
 import path from "path";
 import { execFileAsync } from "../utils/execUtils.js";
 
-export async function collectGitInfo(projectDir: string): Promise<{
-  gitBranch: string | null;
-  gitCommonDir: string | null;
-  prUrl: string | null;
-  prTitle: string | null;
-}> {
+type GitInfo = { gitBranch: string | null; gitCommonDir: string | null; prUrl: string | null; prTitle: string | null };
+
+const gitCache = new Map<string, { data: GitInfo; fetchedAt: number }>();
+const GIT_CACHE_TTL_MS = 60 * 1000; // branch/PR refresh every 60s
+
+export async function collectGitInfo(projectDir: string): Promise<GitInfo> {
+  const now = Date.now();
+  const cached = gitCache.get(projectDir);
+  if (cached && now - cached.fetchedAt < GIT_CACHE_TTL_MS) {
+    return cached.data;
+  }
+
   let gitBranch: string | null = null;
   let gitCommonDir: string | null = null;
   let prUrl: string | null = null;
@@ -36,5 +42,7 @@ export async function collectGitInfo(projectDir: string): Promise<{
     }
   } catch { /* not a git repo or git not available */ }
 
-  return { gitBranch, gitCommonDir, prUrl, prTitle };
+  const data = { gitBranch, gitCommonDir, prUrl, prTitle };
+  gitCache.set(projectDir, { data, fetchedAt: now });
+  return data;
 }
