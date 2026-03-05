@@ -748,6 +748,7 @@ main {
   opacity: 0.6;
   overflow: hidden;
   white-space: nowrap;
+  text-decoration: underline;
 }
 
 .tbl-editor-row {
