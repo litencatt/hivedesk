@@ -179,6 +179,7 @@ function fetchOAuthUsage(accessToken: string): Promise<OAuthUsageResponse> {
 async function collectSessionTokens(): Promise<{
   fiveHourTokens: number;
   weeklyTokens: number;
+  fiveHourResetsAt: string | null;
 }> {
   const projectsDir = path.join(os.homedir(), ".claude", "projects");
   const now = Date.now();
@@ -187,6 +188,7 @@ async function collectSessionTokens(): Promise<{
 
   let fiveHourTokens = 0;
   let weeklyTokens = 0;
+  let oldestFiveHourTs: number | null = null;
 
   const projects = await readdir(projectsDir).catch(() => [] as string[]);
   await Promise.all(projects.map(async (project) => {
@@ -213,14 +215,21 @@ async function collectSessionTokens(): Promise<{
             const usage = entry.message.usage;
             const tokens = (usage.output_tokens ?? 0);
             weeklyTokens += tokens;
-            if (ts >= fiveHoursAgo) fiveHourTokens += tokens;
+            if (ts >= fiveHoursAgo) {
+              fiveHourTokens += tokens;
+              if (oldestFiveHourTs === null || ts < oldestFiveHourTs) oldestFiveHourTs = ts;
+            }
           } catch { /* skip malformed lines */ }
         }
       } catch { /* skip inaccessible files */ }
     }));
   }));
 
-  return { fiveHourTokens, weeklyTokens };
+  const fiveHourResetsAt = oldestFiveHourTs
+    ? new Date(oldestFiveHourTs + 5 * 60 * 60 * 1000).toISOString()
+    : null;
+
+  return { fiveHourTokens, weeklyTokens, fiveHourResetsAt };
 }
 
 async function getCachedOAuthUsage(): Promise<OAuthUsageResponse | null> {
@@ -270,19 +279,29 @@ export async function collectRateLimitUsage(): Promise<{
   authError: boolean;
 }> {
   const [tokenData, apiResponse] = await Promise.all([
-    collectSessionTokens().catch(() => ({ fiveHourTokens: 0, weeklyTokens: 0 })),
+    collectSessionTokens().catch(() => ({ fiveHourTokens: 0, weeklyTokens: 0, fiveHourResetsAt: null })),
     getCachedOAuthUsage(),
   ]);
 
   const apiData = apiResponse?.ok ? apiResponse.data : null;
   const authError = apiResponse !== null && !apiResponse.ok && apiResponse.error === 'auth';
 
+  // Fallback approximate % when OAuth unavailable (env-configured limits only)
+  const fiveHourLimit = process.env.BYAKUGAN_5H_LIMIT ? parseInt(process.env.BYAKUGAN_5H_LIMIT) : null;
+  const weeklyLimit = process.env.BYAKUGAN_WEEKLY_LIMIT ? parseInt(process.env.BYAKUGAN_WEEKLY_LIMIT) : null;
+  const fallbackFiveHourPercent = !apiData && fiveHourLimit && tokenData.fiveHourTokens > 0
+    ? Math.min(100, Math.round((tokenData.fiveHourTokens / fiveHourLimit) * 100))
+    : null;
+  const fallbackWeeklyPercent = !apiData && weeklyLimit && tokenData.weeklyTokens > 0
+    ? Math.min(100, Math.round((tokenData.weeklyTokens / weeklyLimit) * 100))
+    : null;
+
   return {
     fiveHourTokens: tokenData.fiveHourTokens,
     weeklyTokens: tokenData.weeklyTokens,
-    fiveHourPercent: apiData?.fiveHourPercent ?? null,
-    weeklyPercent: apiData?.weeklyPercent ?? null,
-    fiveHourResetsAt: apiData?.fiveHourResetsAt ?? null,
+    fiveHourPercent: apiData?.fiveHourPercent ?? fallbackFiveHourPercent,
+    weeklyPercent: apiData?.weeklyPercent ?? fallbackWeeklyPercent,
+    fiveHourResetsAt: apiData?.fiveHourResetsAt ?? tokenData.fiveHourResetsAt,
     weeklyResetsAt: apiData?.weeklyResetsAt ?? null,
     authError,
   };

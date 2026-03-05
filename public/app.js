@@ -140,7 +140,9 @@ function render(rawData) {
       const cls = u.fiveHourPercent >= 90 ? "usage-critical" : u.fiveHourPercent >= 70 ? "usage-warning" : "";
       parts.push(`<span class="usage-limit usage-5h ${cls}">5h:${u.fiveHourPercent}%${t ? ` (${t})` : ""}${jst ? ` reset ${jst}` : ""}</span>`);
     } else if (u.fiveHourTokens > 0) {
-      parts.push(`<span class="usage-limit usage-5h">5h:${formatTokens(u.fiveHourTokens)}</span>`);
+      const t = formatTimeUntil(u.fiveHourResetsAt);
+      const jst = formatJST(u.fiveHourResetsAt);
+      parts.push(`<span class="usage-limit usage-5h">5h:${formatTokens(u.fiveHourTokens)}${t ? ` (${t})` : ""}${jst ? ` reset ${jst}` : ""}</span>`);
     }
     if (u.weeklyPercent !== null) {
       const t = formatTimeUntil(u.weeklyResetsAt);
