@@ -3,6 +3,40 @@ let demoMode = false;
 let lastData = null;
 let starredPids = new Set(JSON.parse(localStorage.getItem("starredPids") || "[]"));
 let editorSectionCollapsed = localStorage.getItem("editorSectionCollapsed") === "true";
+let hiddenColumns = new Set(JSON.parse(localStorage.getItem("hiddenColumns") || "[]"));
+
+const COL_DEFS = [
+  { key: "star",       fixed: "22px", label: "",           stat: false },
+  { key: "project",    fixed: null,   label: "Project",    stat: false },
+  { key: "dir",        fixed: null,   label: "Dir",        stat: false },
+  { key: "branch",     fixed: null,   label: "Branch",     stat: false },
+  { key: "pr",         fixed: null,   label: "PR",         stat: false },
+  { key: "containers", fixed: null,   label: "Containers", stat: false },
+  { key: "cpu",        fixed: null,   label: "CPU",        stat: true  },
+  { key: "mem",        fixed: null,   label: "MEM",        stat: true  },
+  { key: "uptime",     fixed: null,   label: "Uptime",     stat: true  },
+  { key: "icons",      fixed: null,   label: "",           stat: false },
+];
+
+const HIDDEN_COL_W = "14px";
+
+function updateHiddenColStyles() {
+  let styleEl = document.getElementById("col-hide-style");
+  if (!styleEl) {
+    styleEl = document.createElement("style");
+    styleEl.id = "col-hide-style";
+    document.head.appendChild(styleEl);
+  }
+  const rules = [];
+  COL_DEFS.forEach((c, i) => {
+    if (hiddenColumns.has(c.key)) {
+      const n = i + 1;
+      rules.push(`.process-table th:nth-child(${n}) { padding: 4px 0 !important; }`);
+      rules.push(`.process-table td:nth-child(${n}) { padding: 0 !important; overflow: hidden; }`);
+    }
+  });
+  styleEl.textContent = rules.join("\n");
+}
 
 const DEMO_REPOS = ["project-alpha", "my-webapp", "api-service", "data-pipeline", "frontend-app", "auth-service"];
 const DEMO_BRANCHES = ["feat/user-auth", "fix/payment-bug", "docs/api-update", "refactor/db-layer", "feat/search-feature", "fix/login-issue", "feat/dashboard-v2", "chore/deps-update"];
@@ -178,7 +212,7 @@ function cardHtml(proc, extraProcs = []) {
           ${extraProcs.length > 0 ? `<span class="duplicate-badge">×${extraProcs.length + 1}</span>` : ""}
         </div>
       </div>
-      ${proc.prUrl ? `<a class="pr-link" href="${escapeHtml(proc.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">PR#${escapeHtml(proc.prUrl.split("/").pop() ?? "")}${proc.prTitle ? ` ${escapeHtml(proc.prTitle)}` : ""}</a>` : `<div class="project-dir">${escapeHtml(shortenPath(proc.projectDir))}</div>`}
+      ${proc.prUrl ? `<a class="pr-link" href="${escapeHtml(proc.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${proc.prTitle ? `#${escapeHtml(proc.prUrl.split("/").pop() ?? "")}: ${escapeHtml(proc.prTitle)}` : `#${escapeHtml(proc.prUrl.split("/").pop() ?? "")}`}</a>` : `<div class="project-dir">${escapeHtml(shortenPath(proc.projectDir))}</div>`}
       ${proc.modelName ? `<div class="card-tags"><div class="model-name">${escapeHtml(proc.modelName.replace("claude-", ""))}</div></div>` : ""}
       ${proc.currentTask ? `<div class="current-task">${escapeHtml(proc.currentTask)}</div>` : ""}
       ${proc.openFiles && proc.openFiles.length > 0 ? `
@@ -212,7 +246,7 @@ function tableRowHtml(proc, extraProcs = []) {
       <td class="tbl-project">${escapeHtml(orgRepo(proc.projectDir, proc.gitCommonDir))}</td>
       <td class="tbl-dir">${escapeHtml(shortenPath(proc.projectDir))}</td>
       <td class="tbl-branch">${proc.gitBranch ? `<span class="tbl-branch-name"><img src="git-branch.svg" class="git-branch-icon" alt="branch"> ${escapeHtml(proc.gitBranch)}</span>` : ""}</td>
-      <td class="tbl-pr">${proc.prUrl ? `<a class="pr-link" href="${escapeHtml(proc.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">PR#${escapeHtml(proc.prUrl.split("/").pop() ?? "")}${proc.prTitle ? ` ${escapeHtml(proc.prTitle)}` : ""}</a>` : ""}</td>
+      <td class="tbl-pr">${proc.prUrl ? `<a class="pr-link" href="${escapeHtml(proc.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${proc.prTitle ? `#${escapeHtml(proc.prUrl.split("/").pop() ?? "")}: ${escapeHtml(proc.prTitle)}` : `#${escapeHtml(proc.prUrl.split("/").pop() ?? "")}`}</a>` : ""}</td>
       <td class="tbl-containers">${containersHtml}</td>
       <td class="tbl-stat">${proc.cpuPercent.toFixed(1)}%</td>
       <td class="tbl-stat">${proc.memPercent.toFixed(1)}%</td>
@@ -251,7 +285,7 @@ function renderTable(data, grid) {
             <td class="tbl-project">${escapeHtml(orgRepo(w.projectDir, w.gitCommonDir))}</td>
             <td class="tbl-dir">${escapeHtml(shortenPath(w.projectDir))}</td>
             <td class="tbl-branch">${w.gitBranch ? `<span class="tbl-branch-name"><img src="git-branch.svg" class="git-branch-icon" alt="branch"> ${escapeHtml(w.gitBranch)}</span>` : ""}</td>
-            <td class="tbl-pr">${w.prUrl ? `<a class="pr-link" href="${escapeHtml(w.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">PR#${escapeHtml(w.prUrl.split("/").pop() ?? "")}${w.prTitle ? ` ${escapeHtml(w.prTitle)}` : ""}</a>` : ""}</td>
+            <td class="tbl-pr">${w.prUrl ? `<a class="pr-link" href="${escapeHtml(w.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${w.prTitle ? `#${escapeHtml(w.prUrl.split("/").pop() ?? "")}: ${escapeHtml(w.prTitle)}` : `#${escapeHtml(w.prUrl.split("/").pop() ?? "")}`}</a>` : ""}</td>
             <td class="tbl-containers"></td>
             <td class="tbl-stat"></td>
             <td class="tbl-stat"></td>
@@ -261,37 +295,39 @@ function renderTable(data, grid) {
         `).join(""))
     : "";
 
+  const colgroupHtml = `<colgroup>${COL_DEFS.map(c => {
+    const hidden = hiddenColumns.has(c.key);
+    const w = hidden ? HIDDEN_COL_W : c.fixed;
+    return `<col${w ? ` style="width:${w}"` : ""}>`;
+  }).join("")}</colgroup>`;
+
+  const theadHtml = `<thead><tr>${COL_DEFS.map(c => {
+    const hidden = hiddenColumns.has(c.key);
+    const cls = [c.stat && !hidden ? "tbl-stat" : "", hidden ? "col-toggled" : ""].filter(Boolean).join(" ");
+    return `<th${cls ? ` class="${cls}"` : ""} data-col-toggle="${c.key}" title="${c.label || c.key}">${hidden ? "▸" : c.label}</th>`;
+  }).join("")}</tr></thead>`;
+
   grid.innerHTML = `
     <table class="process-table">
-      <colgroup>
-        <col style="width:24px">
-        <col style="width:14%">
-        <col style="width:18%">
-        <col style="width:13%">
-        <col style="width:16%">
-        <col style="width:10%">
-        <col style="width:44px">
-        <col style="width:44px">
-        <col style="width:60px">
-        <col style="width:48px">
-      </colgroup>
-      <thead>
-        <tr>
-          <th></th>
-          <th>Project</th>
-          <th>Dir</th>
-          <th>Branch</th>
-          <th>PR</th>
-          <th>Containers</th>
-          <th>CPU</th>
-          <th>MEM</th>
-          <th>Uptime</th>
-          <th></th>
-        </tr>
-      </thead>
+      ${colgroupHtml}
+      ${theadHtml}
       <tbody>${tableRows}${editorRows}</tbody>
     </table>
   `;
+
+  updateHiddenColStyles();
+
+  grid.querySelectorAll("th[data-col-toggle]").forEach(th => {
+    th.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const key = th.dataset.colToggle;
+      if (!key) return;
+      if (hiddenColumns.has(key)) hiddenColumns.delete(key);
+      else hiddenColumns.add(key);
+      localStorage.setItem("hiddenColumns", JSON.stringify([...hiddenColumns]));
+      if (lastData) render(lastData);
+    });
+  });
 
   grid.querySelectorAll(".tbl-star[data-star-pid]").forEach(cell => {
     const pid = parseInt(cell.dataset.starPid);
@@ -519,6 +555,7 @@ function applyViewMode() {
 
 connect();
 applyViewMode();
+updateHiddenColStyles();
 
 document.getElementById("view-toggle").addEventListener("click", function () {
   viewMode = viewMode === "grid" ? "list" : "grid";

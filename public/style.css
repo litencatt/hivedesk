@@ -570,7 +570,6 @@ main {
 
 .process-table {
   width: 100%;
-  table-layout: fixed;
   border-collapse: collapse;
   font-size: 13px;
 }
@@ -621,9 +620,9 @@ main {
 }
 
 .tbl-star {
-  width: 24px;
-  min-width: 24px;
-  max-width: 24px;
+  width: 22px;
+  min-width: 22px;
+  max-width: 22px;
   white-space: nowrap;
   text-align: center;
   padding-left: 2px;
@@ -681,13 +680,17 @@ main {
   white-space: nowrap;
 }
 
-.tbl-stat {
+.tbl-stat,
+.process-table thead th.tbl-stat {
   font-size: 13px;
   color: var(--text-muted);
   font-family: monospace;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
   text-align: right;
+  padding-left: 4px;
+  padding-right: 4px;
+  width: 1px;
 }
 
 .tbl-icons {
@@ -727,6 +730,24 @@ main {
 .tbl-collapse-icon {
   font-size: 10px;
   margin-right: 4px;
+}
+
+.process-table thead th[data-col-toggle] {
+  cursor: pointer;
+  user-select: none;
+}
+
+.process-table thead th[data-col-toggle]:not(.col-toggled):hover {
+  color: var(--accent);
+}
+
+.process-table thead th.col-toggled {
+  font-size: 9px;
+  text-align: center;
+  color: var(--text-muted);
+  opacity: 0.6;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .tbl-editor-row {
