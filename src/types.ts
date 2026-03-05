@@ -21,6 +21,7 @@ export interface ClaudeProcess {
   gitCommonDir: string | null;
   modelName: string | null;
   prUrl: string | null;
+  prTitle: string | null;
   editorApp: "vscode" | "cursor" | null;
   isMcpBridge: boolean;
   containers: DockerContainer[];

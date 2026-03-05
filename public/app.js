@@ -33,6 +33,7 @@ function demoify(data) {
       gitBranch: proc.gitBranch ? DEMO_BRANCHES[i % DEMO_BRANCHES.length] : null,
       gitCommonDir: gcDir,
       prUrl: proc.prUrl ? `https://github.com/demo-org/${repo}/pull/${DEMO_PR_BASE + i * 111}` : null,
+      prTitle: proc.prUrl ? DEMO_TASKS[i % DEMO_TASKS.length] : null,
       currentTask: proc.currentTask ? DEMO_TASKS[i % DEMO_TASKS.length] : null,
       openFiles: proc.openFiles.map((_, j) => DEMO_FILES[j % DEMO_FILES.length]),
       modelName: proc.modelName,
@@ -185,7 +186,7 @@ function render(rawData) {
           ${extraProcs.length > 0 ? `<span class="duplicate-badge">×${extraProcs.length + 1}</span>` : ""}
         </div>
       </div>
-      ${proc.prUrl ? `<a class="pr-link" href="${escapeHtml(proc.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">PR:${escapeHtml(proc.prUrl.split("/").pop() ?? "")}</a>` : `<div class="project-dir">${escapeHtml(shortenPath(proc.projectDir))}</div>`}
+      ${proc.prUrl ? `<a class="pr-link" href="${escapeHtml(proc.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">PR#${escapeHtml(proc.prUrl.split("/").pop() ?? "")}${proc.prTitle ? ` ${escapeHtml(proc.prTitle)}` : ""}</a>` : `<div class="project-dir">${escapeHtml(shortenPath(proc.projectDir))}</div>`}
       ${proc.modelName ? `<div class="card-tags"><div class="model-name">${escapeHtml(proc.modelName.replace("claude-", ""))}</div></div>` : ""}
       ${proc.currentTask ? `<div class="current-task">${escapeHtml(proc.currentTask)}</div>` : ""}
       ${proc.openFiles && proc.openFiles.length > 0 ? `

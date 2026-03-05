@@ -31,14 +31,14 @@ async function enrichProcess(pid: number): Promise<Partial<ClaudeProcess> & { in
       .map(p => p.replace(projectDir + "/", ""))
       .filter((v, i, a) => a.indexOf(v) === i);
 
-    const [{ currentTask: sessionTask, modelName, inputTokens, outputTokens }, containers, { gitBranch, gitCommonDir, prUrl }] = await Promise.all([
+    const [{ currentTask: sessionTask, modelName, inputTokens, outputTokens }, containers, { gitBranch, gitCommonDir, prUrl, prTitle }] = await Promise.all([
       collectSessionData(projectDir),
       collectDockerContainers(projectDir),
       collectGitInfo(projectDir),
     ]);
     const currentTask = sessionTask ?? openFiles[0] ?? null;
 
-    return { projectDir, openFiles, currentTask, gitBranch, gitCommonDir, modelName, prUrl, containers, inputTokens, outputTokens };
+    return { projectDir, openFiles, currentTask, gitBranch, gitCommonDir, modelName, prUrl, prTitle, containers, inputTokens, outputTokens };
   } catch {
     return { projectDir: "", openFiles: [], currentTask: null, inputTokens: 0, outputTokens: 0 };
   }
@@ -104,6 +104,7 @@ export async function collectProcesses(): Promise<DashboardData> {
             gitCommonDir: extra.gitCommonDir ?? null,
             modelName: extra.modelName ?? null,
             prUrl: extra.prUrl ?? null,
+            prTitle: extra.prTitle ?? null,
             editorApp: null,
             isMcpBridge,
             containers: extra.containers ?? [],
