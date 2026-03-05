@@ -6,14 +6,14 @@ import https from "https";
 import { execSync } from "child_process";
 import { encodeProjectDir } from "../utils/processUtils.js";
 
-export async function collectSessionData(projectDir: string): Promise<{ currentTask: string | null; modelName: string | null; inputTokens: number; outputTokens: number }> {
+export async function collectSessionData(projectDir: string): Promise<{ currentTask: string | null; modelName: string | null; inputTokens: number; outputTokens: number; claudeStatus: "thinking" | "tool_use" | "executing" | "waiting" | null }> {
   try {
     const encoded = encodeProjectDir(projectDir);
     const claudeProjectsDir = path.join(os.homedir(), ".claude", "projects", encoded);
 
     const files = await readdir(claudeProjectsDir);
     const jsonlFiles = files.filter(f => f.endsWith(".jsonl"));
-    if (jsonlFiles.length === 0) return { currentTask: null, modelName: null, inputTokens: 0, outputTokens: 0 };
+    if (jsonlFiles.length === 0) return { currentTask: null, modelName: null, inputTokens: 0, outputTokens: 0, claudeStatus: null };
 
     // Find most recently modified JSONL file
     const stats = await Promise.all(
@@ -74,9 +74,40 @@ export async function collectSessionData(projectDir: string): Promise<{ currentT
         // skip malformed lines
       }
     }
-    return { currentTask, modelName, inputTokens, outputTokens };
+
+    // Third pass: determine claudeStatus from last meaningful entry
+    const SKIP_TYPES = new Set(["file-history-snapshot", "queue-operation", "last-prompt", "pr-link"]);
+    let claudeStatus: "thinking" | "tool_use" | "executing" | "waiting" | null = null;
+    for (let i = lines.length - 1; i >= 0; i--) {
+      try {
+        const entry = JSON.parse(lines[i]);
+        if (SKIP_TYPES.has(entry.type)) continue;
+        if (entry.type === "progress") {
+          claudeStatus = "executing";
+        } else if (entry.type === "assistant") {
+          const content: Array<{ type: string }> = entry.message?.content ?? [];
+          const hasThinking = Array.isArray(content) && content.some((c) => c.type === "thinking");
+          const stopReason: string | null = entry.message?.stop_reason ?? null;
+          if (hasThinking && !stopReason) {
+            claudeStatus = "thinking";
+          } else if (stopReason === "tool_use") {
+            claudeStatus = "tool_use";
+          } else if (stopReason === "end_turn") {
+            claudeStatus = "waiting";
+          }
+        } else if (entry.type === "user") {
+          // user entry at end means Claude hasn't responded yet
+          claudeStatus = null;
+        }
+        break;
+      } catch {
+        // skip malformed lines
+      }
+    }
+
+    return { currentTask, modelName, inputTokens, outputTokens, claudeStatus };
   } catch {
-    return { currentTask: null, modelName: null, inputTokens: 0, outputTokens: 0 };
+    return { currentTask: null, modelName: null, inputTokens: 0, outputTokens: 0, claudeStatus: null };
   }
 }
 
