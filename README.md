@@ -1,3 +1,5 @@
+<div align="center"><img src="docs/byakugan.png" alt="byakugan" width="120"></div>
+
 # byakugan
 
 Like the Byakugan — the Hyūga clan's kekkei genkai — byakugan sees through your entire development environment from a single screen.
@@ -77,6 +79,12 @@ npm run dev
 ```
 
 Open http://localhost:3000 in your browser.
+
+To use a custom port:
+
+```bash
+PORT=8080 npm run dev
+```
 
 ### Production mode
 

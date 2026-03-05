@@ -1,3 +1,5 @@
+<div align="center"><img src="docs/byakugan.png" alt="byakugan" width="120"></div>
+
 # byakugan
 
 日向一族の血継限界「白眼」のごとく、byakugan は開発環境の全てを一つの画面に映し出す。
@@ -77,6 +79,12 @@ npm run dev
 ```
 
 ブラウザで http://localhost:3000 を開きます。
+
+ポートを変更する場合:
+
+```bash
+PORT=8080 npm run dev
+```
 
 ### 本番モード
 
