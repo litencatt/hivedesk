@@ -1,8 +1,14 @@
 # byakugan
 
-A real-time dashboard for monitoring multiple Claude Code AI agents running in parallel. Click any card to instantly focus the corresponding VSCode / Cursor window.
+Like the Byakugan — the Hyūga clan's kekkei genkai — byakugan sees through your entire development environment from a single screen.
 
-Built for developers who juggle multiple projects simultaneously. **macOS only.**
+While active, it monitors all running Claude Code processes in near-360° real-time vision.
+From chakra flow (token usage) to each process's inner state (tasks, open files, CPU/memory),
+to intelligence from kilometers away (multiple repos, branches, PRs) — all gathered on one screen.
+Even tenketsu (Docker container status) never escapes its sight.
+
+Click any card to instantly jump to the corresponding VSCode / Cursor window.
+**macOS only.**
 
 [日本語版 README はこちら](./README.ja.md)
 
@@ -26,7 +32,7 @@ Built for developers who juggle multiple projects simultaneously. **macOS only.*
 ### Card display
 Each Claude Code process appears as a card showing:
 - **Repository name** + **git branch** (main title)
-- **PR link** with PR number (e.g. `PR:1234`)
+- **PR title** + **PR link** with PR number (e.g. `PR:1234 Fix authentication bug`)
 - **Active model** (Sonnet, Opus, etc.)
 - **Current task** description from session data
 - **Open files** list
