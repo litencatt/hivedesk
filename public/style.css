@@ -649,6 +649,12 @@ main {
 .tbl-pr {
 }
 
+.tbl-containers {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 .tbl-stat {
   font-size: 13px;
   color: var(--text-muted);

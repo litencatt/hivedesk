@@ -250,6 +250,14 @@ function render(rawData) {
       <td class="tbl-dir">${escapeHtml(shortenPath(proc.projectDir))}</td>
       <td class="tbl-branch">${proc.gitBranch ? `<span class="tbl-branch-name"><img src="git-branch.svg" class="git-branch-icon" alt="branch"> ${escapeHtml(proc.gitBranch)}</span>` : ""}</td>
       <td class="tbl-pr">${proc.prUrl ? `<a class="pr-link" href="${escapeHtml(proc.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">PR#${escapeHtml(proc.prUrl.split("/").pop() ?? "")}${proc.prTitle ? ` ${escapeHtml(proc.prTitle)}` : ""}</a>` : ""}</td>
+      <td class="tbl-containers">${proc.containers && proc.containers.length > 0 ? (() => {
+        const running = proc.containers.filter(c => c.state === "running");
+        const names = [
+          ...running.map(c => `<span class="container-running">${escapeHtml(c.service)}</span>`),
+          ...proc.containers.filter(c => c.state !== "running").map(c => `<span class="container-stopped">${escapeHtml(c.service)}</span>`),
+        ].join(" ");
+        return `🐳 <span class="containers-count">${running.length}/${proc.containers.length}</span> ${names}`;
+      })() : ""}</td>
       <td class="tbl-stat">${proc.cpuPercent.toFixed(1)}%</td>
       <td class="tbl-stat">${proc.memPercent.toFixed(1)}%</td>
       <td class="tbl-stat">${formatElapsed(proc.elapsedSeconds)}</td>
@@ -293,7 +301,7 @@ function render(rawData) {
     ).map(({ primary, extras }) => tableRowHtml(primary, extras)).join("");
 
     const editorRows = (data.editorWindows && data.editorWindows.length > 0)
-      ? `<tr class="tbl-group-row tbl-editor-group"><td colspan="8" class="tbl-group-cell">最近開いたプロジェクト</td></tr>` +
+      ? `<tr class="tbl-group-row tbl-editor-group"><td colspan="9" class="tbl-group-cell">最近開いたプロジェクト</td></tr>` +
         [...data.editorWindows]
           .sort((a, b) => (a.projectName ?? "").localeCompare(b.projectName ?? ""))
           .map(w => `
@@ -314,6 +322,7 @@ function render(rawData) {
             <th>Dir</th>
             <th>Branch</th>
             <th>PR</th>
+            <th>Containers</th>
             <th>CPU</th>
             <th>MEM</th>
             <th>Uptime</th>
