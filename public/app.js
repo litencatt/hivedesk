@@ -137,10 +137,16 @@ function render(rawData) {
     if (u.fiveHourTokens > 0) {
       const t = formatTimeUntil(u.fiveHourResetsAt);
       const jst = formatJST(u.fiveHourResetsAt);
-      parts.push(`<span class="usage-limit usage-5h">5h:${formatTokens(u.fiveHourTokens)}${t ? ` (${t})` : ""}${jst ? ` reset ${jst}` : ""}</span>`);
+      const pct = u.fiveHourPercent;
+      const cls = pct !== null && pct >= 90 ? "usage-critical" : pct !== null && pct >= 70 ? "usage-warning" : "";
+      const pctStr = pct !== null ? `${pct}%` : formatTokens(u.fiveHourTokens);
+      parts.push(`<span class="usage-limit usage-5h ${cls}">5h:${pctStr}${t ? ` (${t})` : ""}${jst ? ` reset ${jst}` : ""}</span>`);
     }
     if (u.weeklyTokens > 0) {
-      parts.push(`<span class="usage-limit usage-wk">7d:${formatTokens(u.weeklyTokens)}</span>`);
+      const pct = u.weeklyPercent;
+      const cls = pct !== null && pct >= 90 ? "usage-critical" : pct !== null && pct >= 70 ? "usage-warning" : "";
+      const pctStr = pct !== null ? `${pct}%` : formatTokens(u.weeklyTokens);
+      parts.push(`<span class="usage-limit usage-wk ${cls}">7d:${pctStr}</span>`);
     }
     usageEl.innerHTML = parts.join("");
   }

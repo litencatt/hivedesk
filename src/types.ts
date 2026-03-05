@@ -38,6 +38,8 @@ export interface UsageData {
   totalOutputTokens: number;
   fiveHourTokens: number;
   weeklyTokens: number;
+  fiveHourPercent: number | null;
+  weeklyPercent: number | null;
   fiveHourResetsAt: string | null;
 }
 

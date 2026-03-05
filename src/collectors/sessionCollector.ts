@@ -80,6 +80,8 @@ export async function collectSessionData(projectDir: string): Promise<{ currentT
 export async function collectRateLimitUsage(): Promise<{
   fiveHourTokens: number;
   weeklyTokens: number;
+  fiveHourPercent: number | null;
+  weeklyPercent: number | null;
   fiveHourResetsAt: string | null;
 }> {
   try {
@@ -139,8 +141,13 @@ export async function collectRateLimitUsage(): Promise<{
       ? new Date(oldestFiveHourTs + 5 * 60 * 60 * 1000).toISOString()
       : null;
 
-    return { fiveHourTokens, weeklyTokens, fiveHourResetsAt };
+    const fiveHourLimit = parseInt(process.env.BYAKUGAN_5H_LIMIT ?? "1000000");
+    const weeklyLimit = parseInt(process.env.BYAKUGAN_WEEKLY_LIMIT ?? "5000000");
+    const fiveHourPercent = Math.min(100, Math.round((fiveHourTokens / fiveHourLimit) * 100));
+    const weeklyPercent = Math.min(100, Math.round((weeklyTokens / weeklyLimit) * 100));
+
+    return { fiveHourTokens, weeklyTokens, fiveHourPercent, weeklyPercent, fiveHourResetsAt };
   } catch {
-    return { fiveHourTokens: 0, weeklyTokens: 0, fiveHourResetsAt: null };
+    return { fiveHourTokens: 0, weeklyTokens: 0, fiveHourPercent: null, weeklyPercent: null, fiveHourResetsAt: null };
   }
 }
