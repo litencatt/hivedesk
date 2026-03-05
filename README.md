@@ -33,9 +33,6 @@ Click any card to instantly jump to the corresponding VSCode / Cursor window.
 Each Claude Code process appears as a card showing:
 - **Repository name** + **git branch** (main title)
 - **PR title** + **PR link** with PR number (e.g. `PR:1234 Fix authentication bug`)
-- **Active model** (Sonnet, Opus, etc.)
-- **Current task** description from session data
-- **Open files** list
 - **Docker containers** status (`🐳 3/4 api db redis`)
 - **Editor icon** (VSCode / Cursor) in top-right corner
 - **Working/idle status** via green border highlight
