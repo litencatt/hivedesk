@@ -243,7 +243,7 @@ function render(rawData) {
   const tableRowHtml = (proc, extraProcs = [], hideProject = false) => `
     <tr class="${proc.status}" data-pid="${proc.pid}" tabindex="0" role="button">
       <td class="tbl-project">${hideProject ? "" : escapeHtml(orgRepo(proc.projectDir, proc.gitCommonDir))}</td>
-      <td class="tbl-dir">${escapeHtml(proc.projectDir ? proc.projectDir.split("/").pop() : "")}</td>
+      <td class="tbl-dir">${escapeHtml(shortenPath(proc.projectDir))}</td>
       <td class="tbl-branch">${proc.gitBranch ? `<span class="tbl-branch-name"><img src="git-branch.svg" class="git-branch-icon" alt="branch"> ${escapeHtml(proc.gitBranch)}</span>` : ""}</td>
       <td class="tbl-pr">${proc.prUrl ? `<a class="pr-link" href="${escapeHtml(proc.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">PR#${escapeHtml(proc.prUrl.split("/").pop() ?? "")}${proc.prTitle ? ` ${escapeHtml(proc.prTitle)}` : ""}</a>` : ""}</td>
       <td class="tbl-stat">${proc.cpuPercent.toFixed(1)}%</td>
