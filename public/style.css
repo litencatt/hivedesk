@@ -735,6 +735,7 @@ main {
 .process-table thead th[data-col-toggle] {
   cursor: pointer;
   user-select: none;
+  text-decoration: underline;
 }
 
 .process-table thead th[data-col-toggle]:not(.col-toggled):hover {
