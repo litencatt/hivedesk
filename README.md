@@ -1,8 +1,14 @@
-# hivedesk
+# byakugan
 
-A real-time dashboard for monitoring multiple Claude Code AI agents running in parallel. Click any card to instantly focus the corresponding VSCode / Cursor window.
+Like the Byakugan — the Hyūga clan's kekkei genkai — byakugan sees through your entire development environment from a single screen.
 
-Built for developers who juggle multiple projects simultaneously. **macOS only.**
+While active, it monitors all running Claude Code processes in near-360° real-time vision.
+From chakra flow (token usage) to each process's inner state (tasks, open files, CPU/memory),
+to intelligence from kilometers away (multiple repos, branches, PRs) — all gathered on one screen.
+Even tenketsu (Docker container status) never escapes its sight.
+
+Click any card to instantly jump to the corresponding VSCode / Cursor window.
+**macOS only.**
 
 [日本語版 README はこちら](./README.ja.md)
 
@@ -15,21 +21,18 @@ Built for developers who juggle multiple projects simultaneously. **macOS only.*
 
 **Real usage** — multiple worktrees of the same repository grouped together:
 
-![hivedesk screenshot](./docs/screenshot.png)
+![byakugan screenshot](./docs/screenshot.png)
 
 **Demo mode** — all sensitive info replaced with dummy data (toggle with the Demo button):
 
-![hivedesk demo](./docs/demo.png)
+![byakugan demo](./docs/demo.png)
 
 ## Features
 
 ### Card display
 Each Claude Code process appears as a card showing:
 - **Repository name** + **git branch** (main title)
-- **PR link** with PR number (e.g. `PR:1234`)
-- **Active model** (Sonnet, Opus, etc.)
-- **Current task** description from session data
-- **Open files** list
+- **PR title** + **PR link** with PR number (e.g. `PR:1234 Fix authentication bug`)
 - **Docker containers** status (`🐳 3/4 api db redis`)
 - **Editor icon** (VSCode / Cursor) in top-right corner
 - **Working/idle status** via green border highlight
@@ -60,8 +63,8 @@ Each Claude Code process appears as a card showing:
 ## Installation
 
 ```bash
-git clone https://github.com/litencatt/hivedesk.git
-cd hivedesk
+git clone https://github.com/litencatt/byakugan.git
+cd byakugan
 npm install
 ```
 
@@ -85,7 +88,7 @@ npm start
 ## Project Structure
 
 ```
-hivedesk/
+byakugan/
 ├── src/
 │   ├── server.ts                    # Express server, SSE, REST API
 │   ├── processCollector.ts          # Orchestrates data collection

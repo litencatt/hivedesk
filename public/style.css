@@ -61,7 +61,6 @@ header {
   width: 28px;
   height: 28px;
   object-fit: contain;
-  filter: invert(55%) sepia(40%) saturate(600%) hue-rotate(330deg);
 }
 
 h1 {

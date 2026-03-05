@@ -54,7 +54,7 @@ osascript のサブプロセス起動オーバーヘッドをなくすため、N
 
 **ディレクトリ構成案:**
 ```
-hivedesk/
+byakugan/
 ├── tools/
 │   └── focus-window/
 │       ├── Package.swift

@@ -1,8 +1,14 @@
-# hivedesk
+# byakugan
 
-複数の Claude Code AI エージェントをリアルタイムで監視するダッシュボードです。カードをクリックするだけで、対応する VSCode / Cursor ウィンドウに即座にフォーカスできます。
+日向一族の血継限界「白眼」のごとく、byakugan は開発環境の全てを一つの画面に映し出す。
 
-複数プロジェクトを並行して進める開発スタイルに特化した、**macOS 向け**のエージェント管理ツールです。
+発動中は、起動中の全 Claude Code プロセスをほぼ 360 度の視野でリアルタイム監視。
+チャクラの流れ（トークン使用量）から、各プロセスの内部状態（タスク・開いているファイル・CPU / メモリ）まで透視し、
+何 km も先の情報（複数リポジトリ・ブランチ・PR）をも手元の一画面に集める。
+点穴（Docker コンテナの状態）さえも見逃さない。
+
+カードをクリックすれば、対応する VSCode / Cursor ウィンドウへ即ジャンプ。
+**macOS 専用。**
 
 [English README](./README.md)
 
@@ -15,21 +21,18 @@
 
 **実際の使用例** — 同一リポジトリの worktree をグループ表示:
 
-![hivedesk スクリーンショット](./docs/screenshot.png)
+![byakugan スクリーンショット](./docs/screenshot.png)
 
 **デモモード** — すべての情報をダミーデータに置換（Demo ボタンでトグル）:
 
-![hivedesk デモ](./docs/demo.png)
+![byakugan デモ](./docs/demo.png)
 
 ## 機能
 
 ### カード表示
 各 Claude Code プロセスがカードとして表示され、以下の情報を確認できます:
 - **リポジトリ名** + **git ブランチ名**（メインタイトル）
-- **PR リンク**と PR 番号（例: `PR:1234`）
-- **使用中のモデル**（Sonnet、Opus など）
-- セッションデータから取得した**現在のタスク**
-- **開いているファイル**一覧
+- **PR タイトル** + **PR リンク**と PR 番号（例: `PR:1234 Fix authentication bug`）
 - **Docker コンテナ**の状態（`🐳 3/4 api db redis`）
 - 右上に**エディタアイコン**（VSCode / Cursor）
 - 緑の枠線で **working / idle 状態**を表示
@@ -60,8 +63,8 @@
 ## インストール
 
 ```bash
-git clone https://github.com/litencatt/hivedesk.git
-cd hivedesk
+git clone https://github.com/litencatt/byakugan.git
+cd byakugan
 npm install
 ```
 
@@ -85,7 +88,7 @@ npm start
 ## プロジェクト構成
 
 ```
-hivedesk/
+byakugan/
 ├── src/
 │   ├── server.ts                    # Express サーバー、SSE、REST API
 │   ├── processCollector.ts          # データ収集のオーケストレーター
