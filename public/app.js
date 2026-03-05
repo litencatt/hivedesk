@@ -4,6 +4,7 @@ let lastData = null;
 let starredPids = new Set(JSON.parse(localStorage.getItem("starredPids") || "[]"));
 let editorSectionCollapsed = localStorage.getItem("editorSectionCollapsed") === "true";
 let hiddenColumns = new Set(JSON.parse(localStorage.getItem("hiddenColumns") || "[]"));
+let selectedKey = null;
 
 const COL_DEFS = [
   { key: "star",       fixed: "22px", label: "",           stat: false },
@@ -12,6 +13,7 @@ const COL_DEFS = [
   { key: "branch",     fixed: null,   label: "Branch",     stat: false },
   { key: "pr",         fixed: null,   label: "PR",         stat: false },
   { key: "containers", fixed: null,   label: "Containers", stat: false },
+  { key: "status",     fixed: null,   label: "Status",     stat: false },
   { key: "cpu",        fixed: null,   label: "CPU",        stat: true  },
   { key: "mem",        fixed: null,   label: "MEM",        stat: true  },
   { key: "uptime",     fixed: null,   label: "Uptime",     stat: true  },
@@ -214,7 +216,10 @@ function cardHtml(proc, extraProcs = []) {
         </div>
       </div>
       ${proc.prUrl ? `<a class="pr-link" href="${escapeHtml(proc.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${proc.prTitle ? `#${escapeHtml(proc.prUrl.split("/").pop() ?? "")}: ${escapeHtml(proc.prTitle)}` : `#${escapeHtml(proc.prUrl.split("/").pop() ?? "")}`}</a>` : `<div class="project-dir">${escapeHtml(shortenPath(proc.projectDir))}</div>`}
-      ${proc.modelName ? `<div class="card-tags"><div class="model-name">${escapeHtml(proc.modelName.replace("claude-", ""))}</div></div>` : ""}
+      <div class="card-tags">
+        ${proc.modelName ? `<div class="model-name">${escapeHtml(proc.modelName.replace("claude-", ""))}</div>` : ""}
+        ${proc.claudeStatus ? `<div class="claude-status claude-status-${proc.claudeStatus}">${escapeHtml(proc.claudeStatus)}</div>` : ""}
+      </div>
       ${proc.currentTask ? `<div class="current-task">${escapeHtml(proc.currentTask)}</div>` : ""}
       ${proc.openFiles && proc.openFiles.length > 0 ? `
       <div class="open-files">
@@ -249,6 +254,7 @@ function tableRowHtml(proc, extraProcs = []) {
       <td class="tbl-branch">${proc.gitBranch ? `<span class="tbl-branch-name"><img src="git-branch.svg" class="git-branch-icon" alt="branch"> ${escapeHtml(proc.gitBranch)}</span>` : ""}</td>
       <td class="tbl-pr">${proc.prUrl ? `<a class="pr-link" href="${escapeHtml(proc.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${proc.prTitle ? `#${escapeHtml(proc.prUrl.split("/").pop() ?? "")}: ${escapeHtml(proc.prTitle)}` : `#${escapeHtml(proc.prUrl.split("/").pop() ?? "")}`}</a>` : ""}</td>
       <td class="tbl-containers">${containersHtml}</td>
+      <td class="tbl-status">${proc.claudeStatus ? `<span class="claude-status claude-status-${proc.claudeStatus}">${escapeHtml(proc.claudeStatus)}</span>` : ""}</td>
       <td class="tbl-stat">${proc.cpuPercent.toFixed(1)}%</td>
       <td class="tbl-stat">${proc.memPercent.toFixed(1)}%</td>
       <td class="tbl-stat">${formatElapsed(proc.elapsedSeconds)}</td>
@@ -288,6 +294,7 @@ function renderTable(data, grid) {
             <td class="tbl-branch">${w.gitBranch ? `<span class="tbl-branch-name"><img src="git-branch.svg" class="git-branch-icon" alt="branch"> ${escapeHtml(w.gitBranch)}</span>` : ""}</td>
             <td class="tbl-pr">${w.prUrl ? `<a class="pr-link" href="${escapeHtml(w.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${w.prTitle ? `#${escapeHtml(w.prUrl.split("/").pop() ?? "")}: ${escapeHtml(w.prTitle)}` : `#${escapeHtml(w.prUrl.split("/").pop() ?? "")}`}</a>` : ""}</td>
             <td class="tbl-containers"></td>
+            <td class="tbl-status"></td>
             <td class="tbl-stat"></td>
             <td class="tbl-stat"></td>
             <td class="tbl-stat"></td>
@@ -343,9 +350,9 @@ function renderTable(data, grid) {
 
   grid.querySelectorAll("tr[data-pid]").forEach(row => {
     const pid = parseInt(row.dataset.pid);
-    row.addEventListener("click", () => focusWindow(pid, row));
+    row.addEventListener("click", () => { selectedKey = String(pid); applySelectedClass(grid); focusWindow(pid, row); });
     row.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") focusWindow(pid, row);
+      if (e.key === "Enter" || e.key === " ") { selectedKey = String(pid); applySelectedClass(grid); focusWindow(pid, row); }
     });
   });
 
@@ -365,11 +372,13 @@ function renderTable(data, grid) {
   grid.querySelectorAll("tr[data-dir]").forEach(row => {
     const dir = row.dataset.dir;
     const app = row.dataset.app;
-    row.addEventListener("click", () => focusEditorWindow(dir, app, row));
+    row.addEventListener("click", () => { selectedKey = dir; applySelectedClass(grid); focusEditorWindow(dir, app, row); });
     row.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") focusEditorWindow(dir, app, row);
+      if (e.key === "Enter" || e.key === " ") { selectedKey = dir; applySelectedClass(grid); focusEditorWindow(dir, app, row); }
     });
   });
+
+  applySelectedClass(grid);
 }
 
 function renderCards(data, grid) {
@@ -431,20 +440,22 @@ function renderCards(data, grid) {
 
   grid.querySelectorAll(".card[data-pid]").forEach(card => {
     const pid = parseInt(card.dataset.pid);
-    card.addEventListener("click", () => focusWindow(pid, card));
+    card.addEventListener("click", () => { selectedKey = String(pid); applySelectedClass(grid); focusWindow(pid, card); });
     card.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") focusWindow(pid, card);
+      if (e.key === "Enter" || e.key === " ") { selectedKey = String(pid); applySelectedClass(grid); focusWindow(pid, card); }
     });
   });
 
   grid.querySelectorAll(".editor-card").forEach(card => {
     const dir = card.dataset.dir;
     const app = card.dataset.app;
-    card.addEventListener("click", () => focusEditorWindow(dir, app, card));
+    card.addEventListener("click", () => { selectedKey = dir; applySelectedClass(grid); focusEditorWindow(dir, app, card); });
     card.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") focusEditorWindow(dir, app, card);
+      if (e.key === "Enter" || e.key === " ") { selectedKey = dir; applySelectedClass(grid); focusEditorWindow(dir, app, card); }
     });
   });
+
+  applySelectedClass(grid);
 }
 
 function renderUsage(usage) {
@@ -507,6 +518,14 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
+function applySelectedClass(grid) {
+  grid.querySelectorAll(".item-selected").forEach(el => el.classList.remove("item-selected"));
+  if (!selectedKey) return;
+  const el = grid.querySelector(`[data-pid="${selectedKey}"]`) ||
+             grid.querySelector(`[data-dir="${CSS.escape(selectedKey)}"]`);
+  if (el) el.classList.add("item-selected");
+}
+
 function applyFocusAnimation(cardEl) {
   if (cardEl) {
     cardEl.style.opacity = "0.5";
@@ -536,7 +555,7 @@ function focusWindow(pid, cardEl) {
   }).catch(() => {});
 }
 
-let viewMode = localStorage.getItem("viewMode") || "grid";
+let viewMode = localStorage.getItem("viewMode") || "list";
 
 function applyViewMode() {
   const grid = document.getElementById("process-grid");
