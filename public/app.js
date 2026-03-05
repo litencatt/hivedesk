@@ -4,6 +4,7 @@ let lastData = null;
 let starredPids = new Set(JSON.parse(localStorage.getItem("starredPids") || "[]"));
 let editorSectionCollapsed = localStorage.getItem("editorSectionCollapsed") === "true";
 let hiddenColumns = new Set(JSON.parse(localStorage.getItem("hiddenColumns") || "[]"));
+let selectedKey = null;
 
 const COL_DEFS = [
   { key: "star",       fixed: "22px", label: "",           stat: false },
@@ -343,9 +344,9 @@ function renderTable(data, grid) {
 
   grid.querySelectorAll("tr[data-pid]").forEach(row => {
     const pid = parseInt(row.dataset.pid);
-    row.addEventListener("click", () => focusWindow(pid, row));
+    row.addEventListener("click", () => { selectedKey = String(pid); applySelectedClass(grid); focusWindow(pid, row); });
     row.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") focusWindow(pid, row);
+      if (e.key === "Enter" || e.key === " ") { selectedKey = String(pid); applySelectedClass(grid); focusWindow(pid, row); }
     });
   });
 
@@ -365,11 +366,13 @@ function renderTable(data, grid) {
   grid.querySelectorAll("tr[data-dir]").forEach(row => {
     const dir = row.dataset.dir;
     const app = row.dataset.app;
-    row.addEventListener("click", () => focusEditorWindow(dir, app, row));
+    row.addEventListener("click", () => { selectedKey = dir; applySelectedClass(grid); focusEditorWindow(dir, app, row); });
     row.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") focusEditorWindow(dir, app, row);
+      if (e.key === "Enter" || e.key === " ") { selectedKey = dir; applySelectedClass(grid); focusEditorWindow(dir, app, row); }
     });
   });
+
+  applySelectedClass(grid);
 }
 
 function renderCards(data, grid) {
@@ -431,20 +434,22 @@ function renderCards(data, grid) {
 
   grid.querySelectorAll(".card[data-pid]").forEach(card => {
     const pid = parseInt(card.dataset.pid);
-    card.addEventListener("click", () => focusWindow(pid, card));
+    card.addEventListener("click", () => { selectedKey = String(pid); applySelectedClass(grid); focusWindow(pid, card); });
     card.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") focusWindow(pid, card);
+      if (e.key === "Enter" || e.key === " ") { selectedKey = String(pid); applySelectedClass(grid); focusWindow(pid, card); }
     });
   });
 
   grid.querySelectorAll(".editor-card").forEach(card => {
     const dir = card.dataset.dir;
     const app = card.dataset.app;
-    card.addEventListener("click", () => focusEditorWindow(dir, app, card));
+    card.addEventListener("click", () => { selectedKey = dir; applySelectedClass(grid); focusEditorWindow(dir, app, card); });
     card.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") focusEditorWindow(dir, app, card);
+      if (e.key === "Enter" || e.key === " ") { selectedKey = dir; applySelectedClass(grid); focusEditorWindow(dir, app, card); }
     });
   });
+
+  applySelectedClass(grid);
 }
 
 function renderUsage(usage) {
@@ -505,6 +510,14 @@ function escapeHtml(str) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function applySelectedClass(grid) {
+  grid.querySelectorAll(".item-selected").forEach(el => el.classList.remove("item-selected"));
+  if (!selectedKey) return;
+  const el = grid.querySelector(`[data-pid="${selectedKey}"]`) ||
+             grid.querySelector(`[data-dir="${CSS.escape(selectedKey)}"]`);
+  if (el) el.classList.add("item-selected");
 }
 
 function applyFocusAnimation(cardEl) {
