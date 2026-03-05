@@ -96,8 +96,8 @@ export async function collectSessionData(projectDir: string): Promise<{ currentT
             claudeStatus = "waiting";
           }
         } else if (entry.type === "user") {
-          // user entry at end means Claude hasn't responded yet
-          claudeStatus = null;
+          // user entry at end means Claude is processing (thinking) the input
+          claudeStatus = "thinking";
         }
         break;
       } catch {

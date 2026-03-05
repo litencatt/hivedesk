@@ -294,6 +294,7 @@ function renderTable(data, grid) {
             <td class="tbl-branch">${w.gitBranch ? `<span class="tbl-branch-name"><img src="git-branch.svg" class="git-branch-icon" alt="branch"> ${escapeHtml(w.gitBranch)}</span>` : ""}</td>
             <td class="tbl-pr">${w.prUrl ? `<a class="pr-link" href="${escapeHtml(w.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${w.prTitle ? `#${escapeHtml(w.prUrl.split("/").pop() ?? "")}: ${escapeHtml(w.prTitle)}` : `#${escapeHtml(w.prUrl.split("/").pop() ?? "")}`}</a>` : ""}</td>
             <td class="tbl-containers"></td>
+            <td class="tbl-status"></td>
             <td class="tbl-stat"></td>
             <td class="tbl-stat"></td>
             <td class="tbl-stat"></td>
