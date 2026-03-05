@@ -787,19 +787,12 @@ main {
 
 /* Selected row/card highlight */
 .process-table tbody tr.item-selected td {
-  border-top: 1px solid var(--accent) !important;
-  border-bottom: 1px solid var(--accent) !important;
-}
-.process-table tbody tr.item-selected td:first-child {
-  border-left: 1px solid var(--accent) !important;
-}
-.process-table tbody tr.item-selected td:last-child {
-  border-right: 1px solid var(--accent) !important;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 .card.item-selected,
 .editor-card.item-selected {
-  outline: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
 }
 
 .tbl-editor-row:hover {

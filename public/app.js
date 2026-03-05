@@ -13,6 +13,7 @@ const COL_DEFS = [
   { key: "branch",     fixed: null,   label: "Branch",     stat: false },
   { key: "pr",         fixed: null,   label: "PR",         stat: false },
   { key: "containers", fixed: null,   label: "Containers", stat: false },
+  { key: "status",     fixed: null,   label: "Status",     stat: false },
   { key: "cpu",        fixed: null,   label: "CPU",        stat: true  },
   { key: "mem",        fixed: null,   label: "MEM",        stat: true  },
   { key: "uptime",     fixed: null,   label: "Uptime",     stat: true  },
@@ -253,11 +254,11 @@ function tableRowHtml(proc, extraProcs = []) {
       <td class="tbl-branch">${proc.gitBranch ? `<span class="tbl-branch-name"><img src="git-branch.svg" class="git-branch-icon" alt="branch"> ${escapeHtml(proc.gitBranch)}</span>` : ""}</td>
       <td class="tbl-pr">${proc.prUrl ? `<a class="pr-link" href="${escapeHtml(proc.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${proc.prTitle ? `#${escapeHtml(proc.prUrl.split("/").pop() ?? "")}: ${escapeHtml(proc.prTitle)}` : `#${escapeHtml(proc.prUrl.split("/").pop() ?? "")}`}</a>` : ""}</td>
       <td class="tbl-containers">${containersHtml}</td>
+      <td class="tbl-status">${proc.claudeStatus ? `<span class="claude-status claude-status-${proc.claudeStatus}">${escapeHtml(proc.claudeStatus)}</span>` : ""}</td>
       <td class="tbl-stat">${proc.cpuPercent.toFixed(1)}%</td>
       <td class="tbl-stat">${proc.memPercent.toFixed(1)}%</td>
       <td class="tbl-stat">${formatElapsed(proc.elapsedSeconds)}</td>
       <td class="tbl-icons">
-        ${proc.claudeStatus ? `<span class="claude-status claude-status-${proc.claudeStatus}">${escapeHtml(proc.claudeStatus)}</span>` : ""}
         ${proc.editorApp ? `<img src="${proc.editorApp}.svg" class="editor-icon" alt="${proc.editorApp}">` : ""}
         <img src="claude.svg" class="claude-icon" alt="Claude">
         ${extraProcs.length > 0 ? `<span class="duplicate-badge">×${extraProcs.length + 1}</span>` : ""}
@@ -553,7 +554,7 @@ function focusWindow(pid, cardEl) {
   }).catch(() => {});
 }
 
-let viewMode = localStorage.getItem("viewMode") || "grid";
+let viewMode = localStorage.getItem("viewMode") || "list";
 
 function applyViewMode() {
   const grid = document.getElementById("process-grid");
