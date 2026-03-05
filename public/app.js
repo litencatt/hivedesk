@@ -107,6 +107,16 @@ function formatElapsed(seconds) {
   return `${h}h ${m}m`;
 }
 
+function orgRepo(projectDir, gitCommonDir) {
+  const base = gitCommonDir
+    ? gitCommonDir.replace(/\/\.git$/, "")
+    : projectDir;
+  if (!base) return "";
+  const parts = base.replace(/\/$/, "").split("/");
+  if (parts.length >= 2) return `${parts[parts.length - 2]}/${parts[parts.length - 1]}`;
+  return parts[parts.length - 1] ?? "";
+}
+
 function shortenPath(p) {
   if (!p) return "";
   const home = "/Users/";
@@ -172,11 +182,20 @@ function render(rawData) {
     groupMap.get(key).push(proc);
   }
   const groups = [...groupMap.entries()]
-    .map(([key, procs]) => ({
-      key,
-      repoName: key.replace(/\/\.git$/, "").split("/").pop() ?? key,
-      procs: procs.sort((a, b) => (a.projectName ?? "").localeCompare(b.projectName ?? "")),
-    }))
+    .map(([key, procs]) => {
+      const keyBase = key.replace(/\/\.git$/, "");
+      const parts = keyBase.split("/");
+      const repoName = parts[parts.length - 1] ?? key;
+      const orgRepoName = parts.length >= 2
+        ? `${parts[parts.length - 2]}/${parts[parts.length - 1]}`
+        : repoName;
+      return {
+        key,
+        repoName,
+        orgRepoName,
+        procs: procs.sort((a, b) => (a.projectName ?? "").localeCompare(b.projectName ?? "")),
+      };
+    })
     .sort((a, b) => a.repoName.localeCompare(b.repoName));
 
   const cardHtml = (proc, extraProcs = []) => `
@@ -221,6 +240,23 @@ function render(rawData) {
     </div>
   `;
 
+  const tableRowHtml = (proc, extraProcs = [], hideProject = false) => `
+    <tr class="${proc.status}" data-pid="${proc.pid}" tabindex="0" role="button">
+      <td class="tbl-project">${hideProject ? "" : escapeHtml(orgRepo(proc.projectDir, proc.gitCommonDir))}</td>
+      <td class="tbl-dir">${escapeHtml(shortenPath(proc.projectDir))}</td>
+      <td class="tbl-branch">${proc.gitBranch ? `<span class="tbl-branch-name"><img src="git-branch.svg" class="git-branch-icon" alt="branch"> ${escapeHtml(proc.gitBranch)}</span>` : ""}</td>
+      <td class="tbl-pr">${proc.prUrl ? `<a class="pr-link" href="${escapeHtml(proc.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">PR#${escapeHtml(proc.prUrl.split("/").pop() ?? "")}${proc.prTitle ? ` ${escapeHtml(proc.prTitle)}` : ""}</a>` : ""}</td>
+      <td class="tbl-stat">${proc.cpuPercent.toFixed(1)}%</td>
+      <td class="tbl-stat">${proc.memPercent.toFixed(1)}%</td>
+      <td class="tbl-stat">${formatElapsed(proc.elapsedSeconds)}</td>
+      <td class="tbl-icons">
+        ${proc.editorApp ? `<img src="${proc.editorApp}.svg" class="editor-icon" alt="${proc.editorApp}">` : ""}
+        <img src="claude.svg" class="claude-icon" alt="Claude">
+        ${extraProcs.length > 0 ? `<span class="duplicate-badge">×${extraProcs.length + 1}</span>` : ""}
+      </td>
+    </tr>
+  `;
+
   // Merge duplicate processes sharing the same projectDir into one card
   const mergeByDir = (procs) => {
     const byDir = new Map();
@@ -245,54 +281,111 @@ function render(rawData) {
     .filter(g => g.procs.length > 1)
     .sort((a, b) => b.procs.length - a.procs.length);
 
-  const claudeHtml = [
-    ...multiGroups.map(({ repoName, procs }) => `
-      <div class="repo-group">
-        <div class="repo-group-header">${escapeHtml(repoName)}</div>
-        <div class="repo-group-cards">${mergeByDir(procs).map(({ primary, extras }) => cardHtml(primary, extras)).join("")}</div>
-      </div>`),
-    ...singles.map(({ procs }) => cardHtml(procs[0])),
-  ].join("");
+  if (viewMode === "list") {
+    const tableRows = mergeByDir(
+      [...data.processes].sort((a, b) =>
+        orgRepo(a.projectDir, a.gitCommonDir).localeCompare(orgRepo(b.projectDir, b.gitCommonDir))
+      )
+    ).map(({ primary, extras }) => tableRowHtml(primary, extras)).join("");
 
-  const editorOnlyHtml = (data.editorWindows && data.editorWindows.length > 0)
-    ? `<div class="repo-group">
-        <div class="repo-group-header editor-only-header">最近開いたプロジェクト</div>
-        <div class="repo-group-cards">
-          ${[...data.editorWindows]
-            .sort((a, b) => (a.projectName ?? "").localeCompare(b.projectName ?? ""))
-            .map(w => `
-              <div class="card editor-card" data-dir="${escapeHtml(w.projectDir)}" data-app="${escapeHtml(w.app)}" role="button" tabindex="0">
-                <div class="card-header">
-                  <div class="project-name">${escapeHtml(w.projectName)}</div>
-                  <div class="card-header-icons">
-                    <div class="editor-badge ${w.app}"><img src="${w.app}.svg" class="editor-icon" alt="${w.app}"></div>
+    const editorRows = (data.editorWindows && data.editorWindows.length > 0)
+      ? `<tr class="tbl-group-row tbl-editor-group"><td colspan="8" class="tbl-group-cell">最近開いたプロジェクト</td></tr>` +
+        [...data.editorWindows]
+          .sort((a, b) => (a.projectName ?? "").localeCompare(b.projectName ?? ""))
+          .map(w => `
+            <tr class="tbl-editor-row" data-dir="${escapeHtml(w.projectDir)}" data-app="${escapeHtml(w.app)}" tabindex="0" role="button">
+              <td class="tbl-project">${escapeHtml(w.projectName)}</td>
+              <td class="tbl-path" colspan="2">${escapeHtml(shortenPath(w.projectDir))}</td>
+              <td colspan="4"></td>
+              <td class="tbl-icons"><img src="${w.app}.svg" class="editor-icon" alt="${w.app}"></td>
+            </tr>
+          `).join("")
+      : "";
+
+    grid.innerHTML = `
+      <table class="process-table">
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th>Dir</th>
+            <th>Branch</th>
+            <th>PR</th>
+            <th>CPU</th>
+            <th>MEM</th>
+            <th>Uptime</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>${tableRows}${editorRows}</tbody>
+      </table>
+    `;
+
+    grid.querySelectorAll("tr[data-pid]").forEach(row => {
+      const pid = parseInt(row.dataset.pid);
+      row.addEventListener("click", () => focusWindow(pid, row));
+      row.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") focusWindow(pid, row);
+      });
+    });
+
+    grid.querySelectorAll("tr[data-dir]").forEach(row => {
+      const dir = row.dataset.dir;
+      const app = row.dataset.app;
+      row.addEventListener("click", () => focusEditorWindow(dir, app, row));
+      row.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") focusEditorWindow(dir, app, row);
+      });
+    });
+  } else {
+    const claudeHtml = [
+      ...multiGroups.map(({ repoName, procs }) => `
+        <div class="repo-group">
+          <div class="repo-group-header">${escapeHtml(repoName)}</div>
+          <div class="repo-group-cards">${mergeByDir(procs).map(({ primary, extras }) => cardHtml(primary, extras)).join("")}</div>
+        </div>`),
+      ...singles.map(({ procs }) => cardHtml(procs[0])),
+    ].join("");
+
+    const editorOnlyHtml = (data.editorWindows && data.editorWindows.length > 0)
+      ? `<div class="repo-group">
+          <div class="repo-group-header editor-only-header">最近開いたプロジェクト</div>
+          <div class="repo-group-cards">
+            ${[...data.editorWindows]
+              .sort((a, b) => (a.projectName ?? "").localeCompare(b.projectName ?? ""))
+              .map(w => `
+                <div class="card editor-card" data-dir="${escapeHtml(w.projectDir)}" data-app="${escapeHtml(w.app)}" role="button" tabindex="0">
+                  <div class="card-header">
+                    <div class="project-name">${escapeHtml(w.projectName)}</div>
+                    <div class="card-header-icons">
+                      <div class="editor-badge ${w.app}"><img src="${w.app}.svg" class="editor-icon" alt="${w.app}"></div>
+                    </div>
                   </div>
+                  <div class="project-dir">${escapeHtml(shortenPath(w.projectDir))}</div>
                 </div>
-                <div class="project-dir">${escapeHtml(shortenPath(w.projectDir))}</div>
-              </div>
-            `).join("")}
-        </div>
-      </div>`
-    : "";
+              `).join("")}
+          </div>
+        </div>`
+      : "";
 
-  grid.innerHTML = claudeHtml + editorOnlyHtml;
+    grid.innerHTML = claudeHtml + editorOnlyHtml;
 
-  grid.querySelectorAll(".card[data-pid]").forEach(card => {
-    const pid = parseInt(card.dataset.pid);
-    card.addEventListener("click", () => focusWindow(pid, card));
-    card.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") focusWindow(pid, card);
+    grid.querySelectorAll(".card[data-pid]").forEach(card => {
+      const pid = parseInt(card.dataset.pid);
+      card.addEventListener("click", () => focusWindow(pid, card));
+      card.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") focusWindow(pid, card);
+      });
     });
-  });
 
-  grid.querySelectorAll(".editor-card").forEach(card => {
-    const dir = card.dataset.dir;
-    const app = card.dataset.app;
-    card.addEventListener("click", () => focusEditorWindow(dir, app, card));
-    card.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") focusEditorWindow(dir, app, card);
+    grid.querySelectorAll(".editor-card").forEach(card => {
+      const dir = card.dataset.dir;
+      const app = card.dataset.app;
+      card.addEventListener("click", () => focusEditorWindow(dir, app, card));
+      card.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") focusEditorWindow(dir, app, card);
+      });
     });
-  });
+  }
 }
 
 function escapeHtml(str) {
@@ -332,7 +425,31 @@ function focusWindow(pid, cardEl) {
   }).catch(() => {});
 }
 
+let viewMode = localStorage.getItem("viewMode") || "grid";
+
+function applyViewMode() {
+  const grid = document.getElementById("process-grid");
+  const btn = document.getElementById("view-toggle");
+  if (viewMode === "list") {
+    grid.classList.add("list");
+    btn.classList.add("active");
+    btn.textContent = "Card";
+  } else {
+    grid.classList.remove("list");
+    btn.classList.remove("active");
+    btn.textContent = "Table";
+  }
+}
+
 connect();
+applyViewMode();
+
+document.getElementById("view-toggle").addEventListener("click", function () {
+  viewMode = viewMode === "grid" ? "list" : "grid";
+  localStorage.setItem("viewMode", viewMode);
+  applyViewMode();
+  if (lastData) render(lastData);
+});
 
 document.getElementById("demo-toggle").addEventListener("click", function () {
   demoMode = !demoMode;
