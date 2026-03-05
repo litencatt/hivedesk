@@ -248,9 +248,14 @@ function renderTable(data, grid) {
         .map(w => `
           <tr class="tbl-editor-row" data-dir="${escapeHtml(w.projectDir)}" data-app="${escapeHtml(w.app)}" tabindex="0" role="button">
             <td></td>
-            <td class="tbl-project">${escapeHtml(w.projectName)}</td>
-            <td class="tbl-path" colspan="2">${escapeHtml(shortenPath(w.projectDir))}</td>
-            <td colspan="4"></td>
+            <td class="tbl-project">${escapeHtml(orgRepo(w.projectDir, w.gitCommonDir))}</td>
+            <td class="tbl-dir">${escapeHtml(shortenPath(w.projectDir))}</td>
+            <td class="tbl-branch">${w.gitBranch ? `<span class="tbl-branch-name"><img src="git-branch.svg" class="git-branch-icon" alt="branch"> ${escapeHtml(w.gitBranch)}</span>` : ""}</td>
+            <td class="tbl-pr">${w.prUrl ? `<a class="pr-link" href="${escapeHtml(w.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">PR#${escapeHtml(w.prUrl.split("/").pop() ?? "")}${w.prTitle ? ` ${escapeHtml(w.prTitle)}` : ""}</a>` : ""}</td>
+            <td class="tbl-containers"></td>
+            <td class="tbl-stat"></td>
+            <td class="tbl-stat"></td>
+            <td class="tbl-stat"></td>
             <td class="tbl-icons"><img src="${w.app}.svg" class="editor-icon" alt="${w.app}"></td>
           </tr>
         `).join(""))
@@ -258,6 +263,18 @@ function renderTable(data, grid) {
 
   grid.innerHTML = `
     <table class="process-table">
+      <colgroup>
+        <col style="width:24px">
+        <col style="width:14%">
+        <col style="width:18%">
+        <col style="width:13%">
+        <col style="width:16%">
+        <col style="width:10%">
+        <col style="width:44px">
+        <col style="width:44px">
+        <col style="width:60px">
+        <col style="width:48px">
+      </colgroup>
       <thead>
         <tr>
           <th></th>
