@@ -50,41 +50,75 @@ const DEMO_TASKS = [
   null,
 ];
 const DEMO_FILES = ["src/index.ts", "src/auth/handler.ts", "tests/payment.test.ts", "README.md", "src/utils/logger.ts"];
-const DEMO_CONTAINERS = ["api", "db", "redis", "worker", "nginx", "cache", "queue"];
+const DEMO_CONTAINERS = ["api", "db", "redis", "worker"];
 const DEMO_PR_BASE = 10000;
+const DEMO_ORGS = ["demo-org", "my-company"];
 
-function demoify(data) {
-  const processes = data.processes.map((proc, i) => {
-    const repo = DEMO_REPOS[i % DEMO_REPOS.length];
-    const gcDir = proc.gitCommonDir
-      ? `/Users/demo/projects/${DEMO_REPOS[Math.floor(i / 3) % DEMO_REPOS.length]}/.git`
-      : null;
-    const demoContainers = proc.containers.slice(0, proc.containers.length).map((c, j) => ({
-      ...c,
-      service: DEMO_CONTAINERS[j % DEMO_CONTAINERS.length],
-      name: `${DEMO_CONTAINERS[j % DEMO_CONTAINERS.length]}-1`,
-    }));
-    return {
-      ...proc,
-      projectName: repo,
-      projectDir: `/Users/demo/projects/${gcDir ? DEMO_REPOS[Math.floor(i / 2) % DEMO_REPOS.length] : repo}`,
-      gitBranch: proc.gitBranch ? DEMO_BRANCHES[i % DEMO_BRANCHES.length] : null,
-      gitCommonDir: gcDir,
-      prUrl: proc.prUrl ? `https://github.com/demo-org/${repo}/pull/${DEMO_PR_BASE + i * 111}` : null,
-      prTitle: proc.prUrl ? DEMO_TASKS[i % DEMO_TASKS.length] : null,
-      currentTask: proc.currentTask ? DEMO_TASKS[i % DEMO_TASKS.length] : null,
-      openFiles: proc.openFiles.map((_, j) => DEMO_FILES[j % DEMO_FILES.length]),
-      modelName: proc.modelName,
-      containers: demoContainers,
-    };
-  });
+function generateDemoData(collectedAt) {
+  // Fully synthetic demo data — no real data used
+  const processes = [
+    { repo: "my-webapp",      org: "demo-org",   branch: "feat/search-feature",  pr: 0, containers: 2, cpu: 22.4, mem: 1.6, elapsed: 3600*7+59*60, status: "working", claudeStatus: "executing", model: "sonnet-4-6" },
+    { repo: "api-service",    org: "demo-org",   branch: "chore/deps-update",    pr: 1, containers: 0, cpu: 0.3,  mem: 0.2, elapsed: 3600*7+0*60,  status: "idle",    claudeStatus: "waiting",   model: "sonnet-4-6" },
+    { repo: "api-service",    org: "demo-org",   branch: "feat/user-auth",       pr: 2, containers: 0, cpu: 0.0,  mem: 0.5, elapsed: 3600*1+4*60,  status: "idle",    claudeStatus: null,        model: "sonnet-4-6" },
+    { repo: "project-alpha",  org: "my-company", branch: "fix/payment-bug",      pr: 3, containers: 4, cpu: 0.4,  mem: 0.2, elapsed: 3600*7+49*60, status: "idle",    claudeStatus: "thinking",  model: "opus-4-6"   },
+    { repo: "data-pipeline", org: "my-company", branch: "docs/api-update",      pr: 4, containers: 0, cpu: 0.0,  mem: 0.2, elapsed: 3600*5+13*60, status: "idle",    claudeStatus: null,        model: "sonnet-4-6" },
+  ].map((d, i) => ({
+    pid: 10000 + i * 111,
+    projectName: d.repo,
+    projectDir: `/Users/demo/projects/${d.repo}`,
+    cpuPercent: d.cpu,
+    memPercent: d.mem,
+    status: d.status,
+    claudeStatus: d.claudeStatus,
+    stat: "S",
+    elapsedTime: `${Math.floor(d.elapsed/3600)}:${String(Math.floor((d.elapsed%3600)/60)).padStart(2,"0")}:${String(d.elapsed%60).padStart(2,"0")}`,
+    elapsedSeconds: d.elapsed,
+    currentTask: DEMO_TASKS[i % DEMO_TASKS.length],
+    openFiles: DEMO_FILES.slice(0, 3),
+    gitBranch: d.branch,
+    gitCommonDir: `/Users/demo/projects/${d.repo}/.git`,
+    modelName: `claude-${d.model}`,
+    prUrl: `https://github.com/${d.org}/${d.repo}/pull/${DEMO_PR_BASE + d.pr * 111}`,
+    prTitle: DEMO_TASKS[d.pr % DEMO_TASKS.length],
+    editorApp: i % 2 === 0 ? "vscode" : "cursor",
+    isMcpBridge: false,
+    containers: d.containers > 0
+      ? DEMO_CONTAINERS.slice(0, d.containers).map(s => ({ service: s, name: `${s}-1`, state: "running", status: "Up 2 hours" }))
+      : [],
+  }));
 
-  const editorWindows = data.editorWindows.map((w, i) => {
-    const repo = DEMO_REPOS[(i + 3) % DEMO_REPOS.length];
-    return { ...w, projectName: repo, projectDir: `/Users/demo/projects/${repo}` };
-  });
+  const editorWindows = [
+    { repo: "frontend-app",  org: "demo-org",   branch: "feat/dashboard-v2", pr: true,  app: "vscode" },
+    { repo: "data-pipeline", org: "my-company", branch: "refactor/db-layer", pr: false, app: "cursor" },
+    { repo: "auth-service",  org: "demo-org",   branch: "fix/login-issue",   pr: true,  app: "vscode" },
+  ].map((d, i) => ({
+    app: d.app,
+    projectDir: `/Users/demo/projects/${d.repo}`,
+    projectName: d.repo,
+    gitBranch: d.branch,
+    gitCommonDir: `/Users/demo/projects/${d.repo}/.git`,
+    prUrl: d.pr ? `https://github.com/${d.org}/${d.repo}/pull/${DEMO_PR_BASE + (i + 10) * 77}` : null,
+    prTitle: d.pr ? DEMO_TASKS[(i + 2) % DEMO_TASKS.length] : null,
+  }));
 
-  return { ...data, processes, editorWindows };
+  return {
+    processes,
+    editorWindows,
+    collectedAt: collectedAt || new Date().toISOString(),
+    totalWorking: processes.filter(p => p.status === "working").length,
+    totalIdle: processes.filter(p => p.status === "idle").length,
+    usage: {
+      totalInputTokens: 459000,
+      totalOutputTokens: 6200,
+      fiveHourTokens: 390000,
+      weeklyTokens: 2900000,
+      fiveHourPercent: 39,
+      weeklyPercent: 29,
+      fiveHourResetsAt: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
+      weeklyResetsAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+      authError: false,
+    },
+  };
 }
 
 function connect() {
@@ -281,7 +315,7 @@ function renderTable(data, grid) {
   const editorRows = (data.editorWindows && data.editorWindows.length > 0)
     ? `<tr class="tbl-group-row tbl-editor-group tbl-editor-toggle" tabindex="0" role="button">
         <td colspan="10" class="tbl-group-cell">
-          <span class="tbl-collapse-icon">${editorSectionCollapsed ? "▶" : "▼"}</span> 最近開いたプロジェクト
+          <span class="tbl-collapse-icon">${editorSectionCollapsed ? "▶" : "▼"}</span> Recently Opened Projects
         </td>
        </tr>` +
       (editorSectionCollapsed ? "" : [...data.editorWindows]
@@ -417,7 +451,7 @@ function renderCards(data, grid) {
 
   const editorOnlyHtml = (data.editorWindows && data.editorWindows.length > 0)
     ? `<div class="repo-group">
-        <div class="repo-group-header editor-only-header">最近開いたプロジェクト</div>
+        <div class="repo-group-header editor-only-header">Recently Opened Projects</div>
         <div class="repo-group-cards">
           ${[...data.editorWindows]
             .sort((a, b) => (a.projectName ?? "").localeCompare(b.projectName ?? ""))
@@ -488,7 +522,7 @@ function renderUsage(usage) {
 }
 
 function render(rawData) {
-  const data = demoMode ? demoify(rawData) : rawData;
+  const data = demoMode ? generateDemoData(rawData?.collectedAt) : rawData;
 
   document.getElementById("stat-working").textContent = `${data.totalWorking} working`;
   document.getElementById("stat-idle").textContent = `${data.totalIdle} idle`;
