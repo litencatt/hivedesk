@@ -571,7 +571,11 @@ main {
 .process-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 13px;
+}
+
+.process-table .pr-link {
+  font-size: 13px;
 }
 
 .process-table thead th {
@@ -618,14 +622,12 @@ main {
 .tbl-project {
   font-weight: 600;
   font-family: monospace;
-  white-space: nowrap;
 }
 
 .tbl-dir {
   font-family: monospace;
   font-size: 13px;
   color: var(--text-muted);
-  white-space: nowrap;
 }
 
 .tbl-branch-name {
@@ -635,7 +637,6 @@ main {
   font-family: monospace;
   font-size: 13px;
   color: var(--accent);
-  white-space: nowrap;
 }
 
 .tbl-model {
@@ -646,10 +647,6 @@ main {
 }
 
 .tbl-pr {
-  max-width: 320px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .tbl-stat {
