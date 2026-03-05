@@ -134,20 +134,19 @@ function render(rawData) {
     if (u.totalInputTokens > 0 || u.totalOutputTokens > 0) {
       parts.push(`<span class="usage-tokens">↑${formatTokens(u.totalInputTokens)} ↓${formatTokens(u.totalOutputTokens)}</span>`);
     }
-    if (u.fiveHourTokens > 0) {
+    if (u.fiveHourPercent !== null) {
       const t = formatTimeUntil(u.fiveHourResetsAt);
       const jst = formatJST(u.fiveHourResetsAt);
-      const pct = u.fiveHourPercent;
-      const cls = pct !== null && pct >= 90 ? "usage-critical" : pct !== null && pct >= 70 ? "usage-warning" : "";
-      const pctStr = pct !== null ? `${pct}%` : formatTokens(u.fiveHourTokens);
-      parts.push(`<span class="usage-limit usage-5h ${cls}">5h:${pctStr}${t ? ` (${t})` : ""}${jst ? ` reset ${jst}` : ""}</span>`);
+      const cls = u.fiveHourPercent >= 90 ? "usage-critical" : u.fiveHourPercent >= 70 ? "usage-warning" : "";
+      parts.push(`<span class="usage-limit usage-5h ${cls}">5h:${u.fiveHourPercent}%${t ? ` (${t})` : ""}${jst ? ` reset ${jst}` : ""}</span>`);
     }
-    if (u.weeklyTokens > 0 || u.weeklyPercent !== null) {
-      const pct = u.weeklyPercent;
-      const cls = pct !== null && pct >= 90 ? "usage-critical" : pct !== null && pct >= 70 ? "usage-warning" : "";
-      const pctStr = pct !== null ? `${pct}%` : formatTokens(u.weeklyTokens);
+    if (u.weeklyPercent !== null) {
       const t = formatTimeUntil(u.weeklyResetsAt);
-      parts.push(`<span class="usage-limit usage-wk ${cls}">7d:${pctStr}${t ? ` (${t})` : ""}</span>`);
+      const cls = u.weeklyPercent >= 90 ? "usage-critical" : u.weeklyPercent >= 70 ? "usage-warning" : "";
+      parts.push(`<span class="usage-limit usage-wk ${cls}">7d:${u.weeklyPercent}%${t ? ` (${t})` : ""}</span>`);
+    }
+    if (u.fiveHourPercent === null && u.weeklyPercent === null) {
+      parts.push(`<span class="usage-reauth" title="claude logout &amp;&amp; claude login">🔒 要再認証</span>`);
     }
     usageEl.innerHTML = parts.join("");
   }
