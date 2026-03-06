@@ -680,10 +680,11 @@ main {
   font-family: monospace;
 }
 
-.tbl-dir {
+.tbl-project-dir {
   font-family: monospace;
-  font-size: 13px;
+  font-size: 11px;
   color: var(--text-muted);
+  font-weight: normal;
 }
 
 .tbl-branch-name {
