@@ -160,7 +160,8 @@ let oauthCache: {
   retryAfterMs: number | null;
 } | null = null;
 
-const CACHE_TTL_SUCCESS_MS = 5 * 60 * 1000; // 5 minutes
+// BYAKUGAN_OAUTH_CACHE_TTL_MS でOAuth成功レスポンスのキャッシュ時間を変更できる（デフォルト: 5分）
+const CACHE_TTL_SUCCESS_MS = parseInt(process.env.BYAKUGAN_OAUTH_CACHE_TTL_MS ?? String(5 * 60 * 1000));
 const CACHE_TTL_FAILURE_BASE_MS = 15 * 1000;
 const CACHE_TTL_FAILURE_MAX_MS = 60 * 60 * 1000; // 1 hour cap
 
@@ -281,21 +282,21 @@ async function collectSessionTokens(): Promise<{
   return { fiveHourTokens, weeklyTokens, fiveHourResetsAt };
 }
 
-// Set to false to temporarily disable OAuth usage API calls (e.g. during persistent 429)
-// Set back to true to re-enable; stale failure cache is cleared automatically on re-enable.
-let oauthFetchEnabled = false;
-let _prevOauthFetchEnabled = false;
+// BYAKUGAN_OAUTH_FETCH=false で OAuth使用量APIを無効化できる（デフォルト: 有効）
+// 例: 429が頻発する場合に BYAKUGAN_OAUTH_FETCH=false npm run dev で起動
+let _prevOauthFetchEnabled: boolean | null = null;
 
 async function getCachedOAuthUsage(): Promise<OAuthUsageResponse | null> {
+  const oauthFetchEnabled = process.env.BYAKUGAN_OAUTH_FETCH !== "false";
   if (!oauthFetchEnabled) {
     _prevOauthFetchEnabled = false;
     return null;
   }
   // Clear stale failure cache when re-enabling
-  if (!_prevOauthFetchEnabled) {
+  if (_prevOauthFetchEnabled === false) {
     oauthCache = null;
-    _prevOauthFetchEnabled = true;
   }
+  _prevOauthFetchEnabled = true;
 
   const now = Date.now();
 

@@ -103,33 +103,6 @@ npm run build
 npm start
 ```
 
-## Project Structure
-
-```
-byakugan/
-├── src/
-│   ├── server.ts                    # Express server, SSE, REST API
-│   ├── processCollector.ts          # Orchestrates data collection
-│   ├── types.ts                     # TypeScript types
-│   ├── collectors/
-│   │   ├── sessionCollector.ts      # Claude session data & rate limit usage
-│   │   ├── gitCollector.ts          # Git branch, common dir, PR URL
-│   │   ├── dockerCollector.ts       # Docker Compose container status
-│   │   └── editorCollector.ts       # VSCode / Cursor open windows
-│   └── utils/
-│       └── processUtils.ts          # Shared utility functions
-├── public/
-│   ├── index.html                   # Dashboard HTML
-│   ├── app.js                       # Frontend (SSE client, rendering, demo mode)
-│   ├── style.css                    # Dark/light theme styles
-│   └── [icons].svg                  # Claude, VSCode, Cursor, git-branch icons
-├── docs/
-│   ├── screenshot.png               # Real usage screenshot
-│   └── demo.png                     # Demo mode screenshot
-├── package.json
-└── tsconfig.json
-```
-
 ## Tech Stack
 
 - **Backend**: Node.js + TypeScript + Express
@@ -147,6 +120,17 @@ npm start          # Production mode (after build)
 npm test           # Run tests
 npm run test:watch # Watch mode tests
 ```
+
+## Environment Variables
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `PORT` | `3000` | HTTP server port |
+| `BYAKUGAN_POLL_INTERVAL_MS` | `2000` | SSE push interval & process data cache TTL (ms) |
+| `BYAKUGAN_OAUTH_FETCH` | `true` | Set `false` to disable OAuth usage API calls (e.g. during persistent 429) |
+| `BYAKUGAN_OAUTH_CACHE_TTL_MS` | `300000` | OAuth success response cache duration (ms) |
+| `BYAKUGAN_5H_LIMIT` | — | 5-hour output token limit for approximate usage % display |
+| `BYAKUGAN_WEEKLY_LIMIT` | — | Weekly output token limit for approximate usage % display |
 
 ## API Reference
 

@@ -93,33 +93,6 @@ npm run build
 npm start
 ```
 
-## プロジェクト構成
-
-```
-byakugan/
-├── src/
-│   ├── server.ts                    # Express サーバー、SSE、REST API
-│   ├── processCollector.ts          # データ収集のオーケストレーター
-│   ├── types.ts                     # TypeScript 型定義
-│   ├── collectors/
-│   │   ├── sessionCollector.ts      # Claude セッションデータ & レート制限使用量
-│   │   ├── gitCollector.ts          # git ブランチ、commonDir、PR URL
-│   │   ├── dockerCollector.ts       # Docker Compose コンテナ状態
-│   │   └── editorCollector.ts       # VSCode / Cursor ウィンドウ一覧
-│   └── utils/
-│       └── processUtils.ts          # 共通ユーティリティ関数
-├── public/
-│   ├── index.html                   # ダッシュボード HTML
-│   ├── app.js                       # フロントエンド（SSE クライアント、レンダリング、デモモード）
-│   ├── style.css                    # ダーク / ライトテーマ対応スタイル
-│   └── [icons].svg                  # Claude、VSCode、Cursor、git-branch アイコン
-├── docs/
-│   ├── screenshot.png               # 実際の使用例スクショ
-│   └── demo.png                     # デモモードスクショ
-├── package.json
-└── tsconfig.json
-```
-
 ## 技術スタック
 
 - **バックエンド**: Node.js + TypeScript + Express
@@ -137,6 +110,17 @@ npm start          # 本番モード（ビルド後）
 npm test           # テスト実行
 npm run test:watch # テスト監視モード
 ```
+
+## 環境変数
+
+| 変数名 | デフォルト | 説明 |
+| --- | --- | --- |
+| `PORT` | `3000` | HTTP サーバーポート |
+| `BYAKUGAN_POLL_INTERVAL_MS` | `2000` | SSE 更新間隔 & プロセスデータキャッシュ TTL (ms) |
+| `BYAKUGAN_OAUTH_FETCH` | `true` | `false` で OAuth 使用量 API を無効化（429 頻発時などに有用） |
+| `BYAKUGAN_OAUTH_CACHE_TTL_MS` | `300000` | OAuth 成功レスポンスのキャッシュ時間 (ms) |
+| `BYAKUGAN_5H_LIMIT` | — | 5 時間の出力トークン上限（近似 % 表示用） |
+| `BYAKUGAN_WEEKLY_LIMIT` | — | 週次の出力トークン上限（近似 % 表示用） |
 
 ## API リファレンス
 
