@@ -1,4 +1,4 @@
-import { readdir, readFile, stat } from "fs/promises";
+import { readdir, readFile, stat, writeFile, mkdir } from "fs/promises";
 import { readFileSync } from "fs";
 import path from "path";
 import os from "os";
@@ -282,6 +282,36 @@ async function collectSessionTokens(): Promise<{
   return { fiveHourTokens, weeklyTokens, fiveHourResetsAt };
 }
 
+// BYAKUGAN_USAGE_CACHE_PATH でディスクキャッシュの保存先を変更できる
+// デフォルト: ~/.claude/plugins/byakugan/.usage-cache.json
+// tsx watch によるサーバー再起動でもキャッシュが維持される
+const USAGE_CACHE_PATH = process.env.BYAKUGAN_USAGE_CACHE_PATH
+  ?? path.join(os.homedir(), ".claude", "plugins", "byakugan", ".usage-cache.json");
+
+type DiskCache = {
+  result: OAuthUsageResult | null;
+  error: 'auth' | 'ratelimit' | 'other' | null;
+  fetchedAt: number;
+  consecutiveFailures: number;
+  retryAfterMs: number | null;
+};
+
+async function readDiskCache(): Promise<DiskCache | null> {
+  try {
+    const content = await readFile(USAGE_CACHE_PATH, "utf-8");
+    return JSON.parse(content) as DiskCache;
+  } catch {
+    return null;
+  }
+}
+
+async function writeDiskCache(cache: DiskCache): Promise<void> {
+  try {
+    await mkdir(path.dirname(USAGE_CACHE_PATH), { recursive: true });
+    await writeFile(USAGE_CACHE_PATH, JSON.stringify(cache), "utf-8");
+  } catch { /* ignore write errors */ }
+}
+
 // BYAKUGAN_OAUTH_FETCH=false で OAuth使用量APIを無効化できる（デフォルト: 有効）
 // 例: 429が頻発する場合に BYAKUGAN_OAUTH_FETCH=false npm run dev で起動
 let _prevOauthFetchEnabled: boolean | null = null;
@@ -299,6 +329,12 @@ async function getCachedOAuthUsage(): Promise<OAuthUsageResponse | null> {
   _prevOauthFetchEnabled = true;
 
   const now = Date.now();
+
+  // In-memory cache missing (e.g. tsx watch restart) → restore from disk
+  if (!oauthCache) {
+    const disk = await readDiskCache();
+    if (disk) oauthCache = disk;
+  }
 
   if (oauthCache) {
     const age = now - oauthCache.fetchedAt;
@@ -337,6 +373,11 @@ async function getCachedOAuthUsage(): Promise<OAuthUsageResponse | null> {
     const prev = oauthCache?.consecutiveFailures ?? 0;
     const retryAfterMs = response.retryAfterMs ?? null;
     oauthCache = { result: null, error: response.error, fetchedAt: now, consecutiveFailures: prev + 1, retryAfterMs };
+  }
+
+  // Persist to disk (except auth errors which are not cached)
+  if (oauthCache) {
+    void writeDiskCache(oauthCache);
   }
 
   return response;

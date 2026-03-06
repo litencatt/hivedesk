@@ -121,6 +121,7 @@ npm run test:watch # テスト監視モード
 | `BYAKUGAN_OAUTH_CACHE_TTL_MS` | `300000` | OAuth 成功レスポンスのキャッシュ時間 (ms) |
 | `BYAKUGAN_5H_LIMIT` | — | 5 時間の出力トークン上限（近似 % 表示用） |
 | `BYAKUGAN_WEEKLY_LIMIT` | — | 週次の出力トークン上限（近似 % 表示用） |
+| `BYAKUGAN_USAGE_CACHE_PATH` | `~/.claude/plugins/byakugan/.usage-cache.json` | OAuth 使用量 API レスポンスのディスクキャッシュ保存先（サーバー再起動後も維持） |
 
 ## API リファレンス
 

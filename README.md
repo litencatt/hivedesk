@@ -131,6 +131,7 @@ npm run test:watch # Watch mode tests
 | `BYAKUGAN_OAUTH_CACHE_TTL_MS` | `300000` | OAuth success response cache duration (ms) |
 | `BYAKUGAN_5H_LIMIT` | — | 5-hour output token limit for approximate usage % display |
 | `BYAKUGAN_WEEKLY_LIMIT` | — | Weekly output token limit for approximate usage % display |
+| `BYAKUGAN_USAGE_CACHE_PATH` | `~/.claude/plugins/byakugan/.usage-cache.json` | Disk cache path for OAuth usage API responses (survives server restarts) |
 
 ## API Reference
 
