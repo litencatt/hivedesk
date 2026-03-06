@@ -306,7 +306,7 @@ function tableRowHtml(proc, extraProcs = []) {
       ].join(" ")}</span>`
     : "";
   return `
-    <tr class="${proc.status}" data-pid="${proc.pid}" tabindex="0" role="button">
+    <tr class="${proc.status}" data-pid="${proc.pid}"${proc.editorApp ? ` data-editor-app="${proc.editorApp}"` : ""} tabindex="0" role="button">
       <td class="tbl-star${starredPids.has(proc.pid) ? " starred" : ""}" data-star-pid="${proc.pid}">${starredPids.has(proc.pid) ? "★" : "☆"}</td>
       <td class="tbl-project"><div>${escapeHtml(orgRepo(proc.projectDir, proc.gitCommonDir))}</div><div class="tbl-project-dir">${escapeHtml(shortenPath(proc.projectDir))}</div></td>
       <td class="tbl-branch">${proc.gitBranch ? `<span class="tbl-branch-name"><img src="git-branch.svg" class="git-branch-icon" alt="branch"> ${escapeHtml(proc.gitBranch)}</span>` : ""}</td>
@@ -407,9 +407,10 @@ function renderTable(data, grid) {
 
   grid.querySelectorAll("tr[data-pid]").forEach(row => {
     const pid = parseInt(row.dataset.pid);
-    row.addEventListener("click", () => { selectedKey = String(pid); applySelectedClass(grid); focusWindow(pid, row); });
+    const hasEditor = !!row.dataset.editorApp;
+    row.addEventListener("click", () => { selectedKey = String(pid); applySelectedClass(grid); if (hasEditor) focusWindow(pid, row); });
     row.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") { selectedKey = String(pid); applySelectedClass(grid); focusWindow(pid, row); }
+      if (e.key === "Enter" || e.key === " ") { selectedKey = String(pid); applySelectedClass(grid); if (hasEditor) focusWindow(pid, row); }
     });
   });
 
