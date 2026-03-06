@@ -9,7 +9,6 @@ let selectedKey = null;
 const COL_DEFS = [
   { key: "star",       fixed: "22px", label: "",           stat: false },
   { key: "project",    fixed: null,   label: "Project",    stat: false },
-  { key: "dir",        fixed: null,   label: "Dir",        stat: false },
   { key: "branch",     fixed: null,   label: "Branch",     stat: false },
   { key: "pr",         fixed: null,   label: "PR",         stat: false },
   { key: "containers", fixed: null,   label: "Containers", stat: false },
@@ -36,6 +35,9 @@ function updateHiddenColStyles() {
       if (c.key === "containers") {
         rules.push(`.process-table td:nth-child(${n}) .containers-full { display: none !important; }`);
         rules.push(`.process-table td:nth-child(${n}) .containers-summary { display: inline !important; }`);
+      } else if (c.key === "status") {
+        rules.push(`.process-table td:nth-child(${n}) .status-full { display: none !important; }`);
+        rules.push(`.process-table td:nth-child(${n}) .status-summary { display: inline !important; }`);
       } else {
         rules.push(`.process-table td:nth-child(${n}) { width: 0 !important; max-width: 0 !important; min-width: 0 !important; padding: 0 !important; overflow: hidden; font-size: 0 !important; color: transparent !important; }`);
         rules.push(`.process-table td:nth-child(${n}) > * { display: none !important; }`);
@@ -229,6 +231,21 @@ function mergeByDir(procs) {
   });
 }
 
+function statusEmoji(proc) {
+  if (proc.status === "working") {
+    if (proc.claudeStatus === "thinking") return "💭";
+    if (proc.claudeStatus === "tool_use") return "🔧";
+    if (proc.claudeStatus === "executing") return "🚀";
+    if (proc.claudeStatus === "waiting") return "⏳";
+    return "🔵";
+  }
+  if (proc.claudeStatus === "thinking") return "💭";
+  if (proc.claudeStatus === "tool_use") return "🔧";
+  if (proc.claudeStatus === "executing") return "⚙️";
+  if (proc.claudeStatus === "waiting") return "💤";
+  return "⚪";
+}
+
 function cardHtml(proc, extraProcs = []) {
   const running = (proc.containers ?? []).filter(c => c.state === "running");
   const stopped = (proc.containers ?? []).filter(c => c.state !== "running");
@@ -291,12 +308,11 @@ function tableRowHtml(proc, extraProcs = []) {
   return `
     <tr class="${proc.status}" data-pid="${proc.pid}" tabindex="0" role="button">
       <td class="tbl-star${starredPids.has(proc.pid) ? " starred" : ""}" data-star-pid="${proc.pid}">${starredPids.has(proc.pid) ? "★" : "☆"}</td>
-      <td class="tbl-project">${escapeHtml(orgRepo(proc.projectDir, proc.gitCommonDir))}</td>
-      <td class="tbl-dir">${escapeHtml(shortenPath(proc.projectDir))}</td>
+      <td class="tbl-project"><div>${escapeHtml(orgRepo(proc.projectDir, proc.gitCommonDir))}</div><div class="tbl-project-dir">${escapeHtml(shortenPath(proc.projectDir))}</div></td>
       <td class="tbl-branch">${proc.gitBranch ? `<span class="tbl-branch-name"><img src="git-branch.svg" class="git-branch-icon" alt="branch"> ${escapeHtml(proc.gitBranch)}</span>` : ""}</td>
       <td class="tbl-pr">${proc.prUrl ? `<a class="pr-link" href="${escapeHtml(proc.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${proc.prTitle ? `#${escapeHtml(proc.prUrl.split("/").pop() ?? "")}: ${escapeHtml(proc.prTitle)}` : `#${escapeHtml(proc.prUrl.split("/").pop() ?? "")}`}</a>` : ""}</td>
       <td class="tbl-containers">${containersHtml}</td>
-      <td class="tbl-status">${proc.claudeStatus ? `<span class="claude-status claude-status-${proc.claudeStatus}">${escapeHtml(proc.claudeStatus)}</span>` : ""}</td>
+      <td class="tbl-status"><span class="status-summary" style="display:none">${statusEmoji(proc)}</span><span class="status-full">${proc.claudeStatus ? `<span class="claude-status claude-status-${proc.claudeStatus}">${escapeHtml(proc.claudeStatus)}</span>` : ""}</span></td>
       <td class="tbl-stat">${proc.cpuPercent.toFixed(1)}%</td>
       <td class="tbl-stat">${proc.memPercent.toFixed(1)}%</td>
       <td class="tbl-stat">${formatElapsed(proc.elapsedSeconds)}</td>
@@ -322,7 +338,7 @@ function renderTable(data, grid) {
 
   const editorRows = (data.editorWindows && data.editorWindows.length > 0)
     ? `<tr class="tbl-group-row tbl-editor-group tbl-editor-toggle" tabindex="0" role="button">
-        <td colspan="10" class="tbl-group-cell">
+        <td colspan="9" class="tbl-group-cell">
           <span class="tbl-collapse-icon">${editorSectionCollapsed ? "▶" : "▼"}</span> Recently Opened Projects
         </td>
        </tr>` +
@@ -331,8 +347,7 @@ function renderTable(data, grid) {
         .map(w => `
           <tr class="tbl-editor-row" data-dir="${escapeHtml(w.projectDir)}" data-app="${escapeHtml(w.app)}" tabindex="0" role="button">
             <td></td>
-            <td class="tbl-project">${escapeHtml(orgRepo(w.projectDir, w.gitCommonDir))}</td>
-            <td class="tbl-dir">${escapeHtml(shortenPath(w.projectDir))}</td>
+            <td class="tbl-project"><div>${escapeHtml(orgRepo(w.projectDir, w.gitCommonDir))}</div><div class="tbl-project-dir">${escapeHtml(shortenPath(w.projectDir))}</div></td>
             <td class="tbl-branch">${w.gitBranch ? `<span class="tbl-branch-name"><img src="git-branch.svg" class="git-branch-icon" alt="branch"> ${escapeHtml(w.gitBranch)}</span>` : ""}</td>
             <td class="tbl-pr">${w.prUrl ? `<a class="pr-link" href="${escapeHtml(w.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${w.prTitle ? `#${escapeHtml(w.prUrl.split("/").pop() ?? "")}: ${escapeHtml(w.prTitle)}` : `#${escapeHtml(w.prUrl.split("/").pop() ?? "")}`}</a>` : ""}</td>
             <td class="tbl-containers"></td>
