@@ -162,9 +162,7 @@ let oauthCache: {
 
 // BYAKUGAN_OAUTH_CACHE_TTL_MS でOAuth成功レスポンスのキャッシュ時間を変更できる（デフォルト: 5分）
 const CACHE_TTL_SUCCESS_MS = parseInt(process.env.BYAKUGAN_OAUTH_CACHE_TTL_MS ?? String(5 * 60 * 1000));
-// BYAKUGAN_OAUTH_FAILURE_BASE_MS でOAuth失敗時の初期バックオフを変更できる（デフォルト: 10分）
-// 0 を設定すると失敗後はリトライしない（実質停止）
-const CACHE_TTL_FAILURE_BASE_MS = parseInt(process.env.BYAKUGAN_OAUTH_FAILURE_BASE_MS ?? String(10 * 60 * 1000));
+const CACHE_TTL_FAILURE_BASE_MS = 10 * 60 * 1000; // 10分から開始し指数バックオフ
 const CACHE_TTL_FAILURE_MAX_MS = 60 * 60 * 1000; // 1 hour cap
 
 function fetchOAuthUsage(accessToken: string): Promise<OAuthUsageResponse> {
@@ -349,14 +347,12 @@ async function getCachedOAuthUsage(): Promise<OAuthUsageResponse | null> {
       // Auth errors are never cached — fall through to fetch
     } else if (oauthCache.error !== null) {
       // Use Retry-After if available and > 0, otherwise exponential backoff
-      const backoff = CACHE_TTL_FAILURE_BASE_MS === 0
-        ? Number.MAX_SAFE_INTEGER
-        : (oauthCache.retryAfterMs !== null && oauthCache.retryAfterMs > 0)
-          ? oauthCache.retryAfterMs
-          : Math.min(
-              CACHE_TTL_FAILURE_BASE_MS * Math.pow(2, oauthCache.consecutiveFailures - 1),
-              CACHE_TTL_FAILURE_MAX_MS
-            );
+      const backoff = (oauthCache.retryAfterMs !== null && oauthCache.retryAfterMs > 0)
+        ? oauthCache.retryAfterMs
+        : Math.min(
+            CACHE_TTL_FAILURE_BASE_MS * Math.pow(2, oauthCache.consecutiveFailures - 1),
+            CACHE_TTL_FAILURE_MAX_MS
+          );
       if (age < backoff) {
         return { ok: false, error: oauthCache.error };
       }
