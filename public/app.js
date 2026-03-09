@@ -246,53 +246,6 @@ function statusEmoji(proc) {
   return "⚪";
 }
 
-function cardHtml(proc, extraProcs = []) {
-  const running = (proc.containers ?? []).filter(c => c.state === "running");
-  const stopped = (proc.containers ?? []).filter(c => c.state !== "running");
-  const containersHtml = proc.containers && proc.containers.length > 0
-    ? `<div class="card-containers">🐳 <span class="containers-count">${running.length}/${proc.containers.length}</span> ${[
-        ...running.map(c => `<span class="container-running">${escapeHtml(c.service)}</span>`),
-        ...stopped.map(c => `<span class="container-stopped">${escapeHtml(c.service)}</span>`),
-      ].join(" ")}</div>`
-    : "";
-  return `
-    <div class="card ${proc.status}" data-pid="${proc.pid}" role="button" tabindex="0">
-      <div class="card-header">
-        <div class="card-header-left">
-          <div class="project-repo-name">${escapeHtml(proc.projectName)}</div>
-          <div class="project-name-row">
-            ${proc.gitBranch ? `<img src="git-branch.svg" class="git-branch-icon" alt="branch">` : ""}
-            <div class="project-name">${escapeHtml(proc.gitBranch ?? proc.projectName)}</div>
-          </div>
-        </div>
-        <div class="card-header-icons">
-          ${proc.editorApp ? `<div class="editor-badge ${proc.editorApp}"><img src="${proc.editorApp}.svg" class="editor-icon" alt="${proc.editorApp}"></div>` : ""}
-          <img src="claude.svg" class="claude-icon" alt="Claude">
-          ${extraProcs.length > 0 ? `<span class="duplicate-badge">×${extraProcs.length + 1}</span>` : ""}
-        </div>
-      </div>
-      ${proc.prUrl ? `<a class="pr-link" href="${escapeHtml(proc.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${proc.prTitle ? `#${escapeHtml(proc.prUrl.split("/").pop() ?? "")}: ${escapeHtml(proc.prTitle)}` : `#${escapeHtml(proc.prUrl.split("/").pop() ?? "")}`}</a>` : `<div class="project-dir">${escapeHtml(shortenPath(proc.projectDir))}</div>`}
-      <div class="card-tags">
-        ${proc.modelName ? `<div class="model-name">${escapeHtml(proc.modelName.replace("claude-", ""))}</div>` : ""}
-        ${proc.claudeStatus ? `<div class="claude-status claude-status-${proc.claudeStatus}">${escapeHtml(proc.claudeStatus)}</div>` : ""}
-      </div>
-      ${proc.currentTask ? `<div class="current-task">${escapeHtml(proc.currentTask)}</div>` : ""}
-      ${proc.openFiles && proc.openFiles.length > 0 ? `
-      <div class="open-files">
-        ${proc.openFiles.slice(0, 5).map(f => `<div class="open-file">${escapeHtml(f)}</div>`).join("")}
-        ${proc.openFiles.length > 5 ? `<div class="open-file open-file-more">+${proc.openFiles.length - 5} more</div>` : ""}
-      </div>` : ""}
-      ${containersHtml}
-      <div class="card-meta">
-        <div class="meta-item${extraProcs.length > 0 ? " meta-pid-dup" : ""}">PID: <span>${[proc, ...extraProcs].map(p => p.pid).join(", ")}</span></div>
-        <div class="meta-item">CPU: <span>${proc.cpuPercent.toFixed(1)}%</span></div>
-        <div class="meta-item">MEM: <span>${proc.memPercent.toFixed(1)}%</span></div>
-        <div class="meta-item">Uptime: <span>${formatElapsed(proc.elapsedSeconds)}</span></div>
-      </div>
-    </div>
-  `;
-}
-
 function tableRowHtml(proc, extraProcs = []) {
   const running = (proc.containers ?? []).filter(c => c.state === "running");
   const stopped = (proc.containers ?? []).filter(c => c.state !== "running");
@@ -439,83 +392,6 @@ function renderTable(data, grid) {
   applySelectedClass(grid);
 }
 
-function renderCards(data, grid) {
-  const groupMap = new Map();
-  for (const proc of data.processes) {
-    const key = proc.gitCommonDir ?? proc.projectDir ?? String(proc.pid);
-    if (!groupMap.has(key)) groupMap.set(key, []);
-    groupMap.get(key).push(proc);
-  }
-  const groups = [...groupMap.entries()]
-    .map(([key, procs]) => {
-      const keyBase = key.replace(/\/\.git$/, "");
-      const parts = keyBase.split("/");
-      const repoName = parts[parts.length - 1] ?? key;
-      return {
-        key,
-        repoName,
-        procs: procs.sort((a, b) => (a.projectName ?? "").localeCompare(b.projectName ?? "")),
-      };
-    })
-    .sort((a, b) => a.repoName.localeCompare(b.repoName));
-
-  const singles = groups.filter(g => g.procs.length === 1);
-  const multiGroups = groups
-    .filter(g => g.procs.length > 1)
-    .sort((a, b) => b.procs.length - a.procs.length);
-
-  const claudeHtml = [
-    ...multiGroups.map(({ repoName, procs }) => `
-      <div class="repo-group">
-        <div class="repo-group-header">${escapeHtml(repoName)}</div>
-        <div class="repo-group-cards">${mergeByDir(procs).map(({ primary, extras }) => cardHtml(primary, extras)).join("")}</div>
-      </div>`),
-    ...singles.map(({ procs }) => cardHtml(procs[0])),
-  ].join("");
-
-  const editorOnlyHtml = (data.editorWindows && data.editorWindows.length > 0)
-    ? `<div class="repo-group">
-        <div class="repo-group-header editor-only-header">Recently Opened Projects</div>
-        <div class="repo-group-cards">
-          ${[...data.editorWindows]
-            .sort((a, b) => (a.projectName ?? "").localeCompare(b.projectName ?? ""))
-            .map(w => `
-              <div class="card editor-card" data-dir="${escapeHtml(w.projectDir)}" data-app="${escapeHtml(w.app)}" role="button" tabindex="0">
-                <div class="card-header">
-                  <div class="project-name">${escapeHtml(w.projectName)}</div>
-                  <div class="card-header-icons">
-                    <div class="editor-badge ${w.app}"><img src="${w.app}.svg" class="editor-icon" alt="${w.app}"></div>
-                  </div>
-                </div>
-                <div class="project-dir">${escapeHtml(shortenPath(w.projectDir))}</div>
-              </div>
-            `).join("")}
-        </div>
-      </div>`
-    : "";
-
-  grid.innerHTML = claudeHtml + editorOnlyHtml;
-
-  grid.querySelectorAll(".card[data-pid]").forEach(card => {
-    const pid = parseInt(card.dataset.pid);
-    card.addEventListener("click", () => { selectedKey = String(pid); applySelectedClass(grid); focusWindow(pid, card); });
-    card.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") { selectedKey = String(pid); applySelectedClass(grid); focusWindow(pid, card); }
-    });
-  });
-
-  grid.querySelectorAll(".editor-card").forEach(card => {
-    const dir = card.dataset.dir;
-    const app = card.dataset.app;
-    card.addEventListener("click", () => { selectedKey = dir; applySelectedClass(grid); focusEditorWindow(dir, app, card); });
-    card.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") { selectedKey = dir; applySelectedClass(grid); focusEditorWindow(dir, app, card); }
-    });
-  });
-
-  applySelectedClass(grid);
-}
-
 function renderUsage(usage) {
   const usageEl = document.getElementById("usage-stats");
   if (!usageEl || !usage) return;
@@ -561,11 +437,7 @@ function render(rawData) {
     return;
   }
 
-  if (viewMode === "list") {
-    renderTable(data, grid);
-  } else {
-    renderCards(data, grid);
-  }
+  renderTable(data, grid);
 }
 
 function escapeHtml(str) {
@@ -613,32 +485,10 @@ function focusWindow(pid, cardEl) {
   }).catch(() => {});
 }
 
-let viewMode = localStorage.getItem("viewMode") || "list";
-
-function applyViewMode() {
-  const grid = document.getElementById("process-grid");
-  const btn = document.getElementById("view-toggle");
-  if (viewMode === "list") {
-    grid.classList.add("list");
-    btn.classList.add("active");
-    btn.textContent = "Card";
-  } else {
-    grid.classList.remove("list");
-    btn.classList.remove("active");
-    btn.textContent = "Table";
-  }
-}
+document.getElementById("process-grid").classList.add("list");
 
 connect();
-applyViewMode();
 updateHiddenColStyles();
-
-document.getElementById("view-toggle").addEventListener("click", function () {
-  viewMode = viewMode === "grid" ? "list" : "grid";
-  localStorage.setItem("viewMode", viewMode);
-  applyViewMode();
-  if (lastData) render(lastData);
-});
 
 document.getElementById("demo-toggle").addEventListener("click", function () {
   demoMode = !demoMode;
