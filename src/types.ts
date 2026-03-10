@@ -48,6 +48,7 @@ export interface UsageData {
   fiveHourResetsAt: string | null;
   weeklyResetsAt: string | null;
   authError: boolean;
+  oauthDisabled: boolean;
 }
 
 export interface DashboardData {

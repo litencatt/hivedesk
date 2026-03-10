@@ -160,8 +160,8 @@ let oauthCache: {
   retryAfterMs: number | null;
 } | null = null;
 
-// BYAKUGAN_OAUTH_CACHE_TTL_MS でOAuth成功レスポンスのキャッシュ時間を変更できる（デフォルト: 5分）
-const CACHE_TTL_SUCCESS_MS = parseInt(process.env.BYAKUGAN_OAUTH_CACHE_TTL_MS ?? String(5 * 60 * 1000));
+// BYAKUGAN_OAUTH_CACHE_TTL でOAuth成功レスポンスのキャッシュ時間を変更できる（デフォルト: 300秒）
+const CACHE_TTL_SUCCESS_MS = parseInt(process.env.BYAKUGAN_OAUTH_CACHE_TTL ?? "300") * 1000;
 const CACHE_TTL_FAILURE_BASE_MS = 10 * 60 * 1000; // 10分から開始し指数バックオフ
 const CACHE_TTL_FAILURE_MAX_MS = 60 * 60 * 1000; // 1 hour cap
 
@@ -391,6 +391,7 @@ export async function collectRateLimitUsage(): Promise<{
   fiveHourResetsAt: string | null;
   weeklyResetsAt: string | null;
   authError: boolean;
+  oauthDisabled: boolean;
 }> {
   const [tokenData, apiResponse] = await Promise.all([
     collectSessionTokens().catch(() => ({ fiveHourTokens: 0, weeklyTokens: 0, fiveHourResetsAt: null })),
@@ -400,23 +401,14 @@ export async function collectRateLimitUsage(): Promise<{
   const apiData = apiResponse?.ok ? apiResponse.data : null;
   const authError = apiResponse !== null && !apiResponse.ok && apiResponse.error === 'auth';
 
-  // Fallback approximate % when OAuth unavailable (env-configured limits only)
-  const fiveHourLimit = process.env.BYAKUGAN_5H_LIMIT ? parseInt(process.env.BYAKUGAN_5H_LIMIT) : null;
-  const weeklyLimit = process.env.BYAKUGAN_WEEKLY_LIMIT ? parseInt(process.env.BYAKUGAN_WEEKLY_LIMIT) : null;
-  const fallbackFiveHourPercent = !apiData && fiveHourLimit && tokenData.fiveHourTokens > 0
-    ? Math.min(100, Math.round((tokenData.fiveHourTokens / fiveHourLimit) * 100))
-    : null;
-  const fallbackWeeklyPercent = !apiData && weeklyLimit && tokenData.weeklyTokens > 0
-    ? Math.min(100, Math.round((tokenData.weeklyTokens / weeklyLimit) * 100))
-    : null;
-
   return {
     fiveHourTokens: tokenData.fiveHourTokens,
     weeklyTokens: tokenData.weeklyTokens,
-    fiveHourPercent: apiData?.fiveHourPercent ?? fallbackFiveHourPercent,
-    weeklyPercent: apiData?.weeklyPercent ?? fallbackWeeklyPercent,
+    fiveHourPercent: apiData?.fiveHourPercent ?? null,
+    weeklyPercent: apiData?.weeklyPercent ?? null,
     fiveHourResetsAt: apiData?.fiveHourResetsAt ?? tokenData.fiveHourResetsAt,
     weeklyResetsAt: apiData?.weeklyResetsAt ?? null,
     authError,
+    oauthDisabled: process.env.BYAKUGAN_OAUTH_FETCH === "false",
   };
 }

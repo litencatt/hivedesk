@@ -9,7 +9,7 @@
 何 km も先の情報（複数リポジトリ・ブランチ・PR）をも手元の一画面に集める。
 点穴（Docker コンテナの状態）さえも見逃さない。
 
-カードをクリックすれば、対応する VSCode / Cursor ウィンドウへ即ジャンプ。
+行をクリックすれば、対応する VSCode / Cursor ウィンドウへ即ジャンプ。
 **macOS 専用。**
 
 [English README](./README.md)
@@ -31,18 +31,20 @@
 
 ## 機能
 
-### カード表示
-各 Claude Code プロセスがカードとして表示され、以下の情報を確認できます:
-- **リポジトリ名** + **git ブランチ名**（メインタイトル）
-- **PR タイトル** + **PR リンク**と PR 番号（例: `PR:1234 Fix authentication bug`）
-- **Docker コンテナ**の状態（`🐳 3/4 api db redis`）
-- 右上に**エディタアイコン**（VSCode / Cursor）
-- 緑の枠線で **working / idle 状態**を表示
-- `···` クリックで**統計パネル**（CPU・メモリ・起動時間・PID）をトグル
+### テーブル表示
+各 Claude Code プロセスが1行で表示され、以下の情報を確認できます:
+- **Project**: `org/repo` + パス（2行目）
+- **Branch**: git ブランチ名
+- **PR**: PR リンクとタイトル
+- **Containers**: Docker コンテナの状態（`🐳 3/4 api db redis`）
+- **Status**: claudeStatus バッジ（hide 時は絵文字で表示）
+- **CPU / MEM / Uptime**: プロセス統計
+- 右端に**エディタアイコン**（VSCode / Cursor）
 
-### レイアウト
-- **worktree グループ化**: 同一リポジトリの worktree をまとめてグループ表示。worktree 数の多い順に上から並ぶ
-- **最近開いたプロジェクト**: Claude プロセスのないエディタウィンドウを下部にまとめて表示
+列ヘッダーをクリックすることで列の表示/非表示をトグルできます。
+
+### テーブル下部
+- **最近開いたプロジェクト**: Claude プロセスのないエディタウィンドウを折りたたみ可能なセクションで表示
 
 ### ヘッダー
 - **トークン使用量**: 5 時間・週次の Claude API 使用状況（例: `5h:32% (2h5m)[reset:02:00] wk:35%(2d13h)`）
@@ -50,7 +52,7 @@
 - **デモモード**: スクショ撮影用にプロジェクト情報をダミーデータに置換
 
 ### その他
-- **ワンクリック IDE フォーカス**: カードをクリックで対応する VSCode / Cursor ウィンドウが即座にアクティブに
+- **ワンクリック IDE フォーカス**: 行をクリックで対応する VSCode / Cursor ウィンドウが即座にアクティブに（エディタアイコンがある行のみ）
 - **ダーク / ライトテーマ**: システム設定に応じて自動切り替え
 - **SSE ベースのリアルタイム更新**: 2 秒ごとにデータを更新
 - **ホットリロード**: 開発中は `public/` 配下のファイル変更を自動検出してリロード
@@ -116,11 +118,9 @@ npm run test:watch # テスト監視モード
 | 変数名 | デフォルト | 説明 |
 | --- | --- | --- |
 | `PORT` | `3000` | HTTP サーバーポート |
-| `BYAKUGAN_POLL_INTERVAL_MS` | `2000` | SSE 更新間隔 & プロセスデータキャッシュ TTL (ms) |
+| `BYAKUGAN_POLL_INTERVAL` | `2` | SSE 更新間隔 & プロセスデータキャッシュ TTL（秒） |
 | `BYAKUGAN_OAUTH_FETCH` | `true` | `false` で OAuth 使用量 API を無効化（429 頻発時などに有用） |
-| `BYAKUGAN_OAUTH_CACHE_TTL_MS` | `300000` | OAuth 成功レスポンスのキャッシュ時間 (ms) |
-| `BYAKUGAN_5H_LIMIT` | — | 5 時間の出力トークン上限（近似 % 表示用） |
-| `BYAKUGAN_WEEKLY_LIMIT` | — | 週次の出力トークン上限（近似 % 表示用） |
+| `BYAKUGAN_OAUTH_CACHE_TTL` | `300` | OAuth 成功レスポンスのキャッシュ時間（秒） |
 | `BYAKUGAN_USAGE_CACHE_PATH` | `~/.claude/plugins/byakugan/.usage-cache.json` | OAuth 使用量 API レスポンスのディスクキャッシュ保存先（サーバー再起動後も維持） |
 
 ## API リファレンス

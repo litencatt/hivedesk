@@ -11,8 +11,8 @@ const PORT = process.env.PORT ?? 3000;
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "..", "public")));
 
-// BYAKUGAN_POLL_INTERVAL_MS でSSE更新間隔とプロセスデータキャッシュTTLを変更できる（デフォルト: 2000ms）
-const POLL_INTERVAL_MS = parseInt(process.env.BYAKUGAN_POLL_INTERVAL_MS ?? "2000");
+// BYAKUGAN_POLL_INTERVAL でSSE更新間隔とプロセスデータキャッシュTTLを変更できる（デフォルト: 2秒）
+const POLL_INTERVAL_MS = parseInt(process.env.BYAKUGAN_POLL_INTERVAL ?? "2") * 1000;
 
 let cache: { data: DashboardData; fetchedAt: number } | null = null;
 const CACHE_TTL_MS = POLL_INTERVAL_MS;
