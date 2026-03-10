@@ -8,13 +8,15 @@ type GitCache = {
   data: GitInfo;
   lastBranch: string | null;
   lastFetchHeadMtime: number | null;
+  lastRemoteRefMtime: number | null;
+  cachedAt: number;
 };
 
 const gitCache = new Map<string, GitCache>();
 
-async function getFetchHeadMtime(gitCommonDir: string): Promise<number | null> {
+async function getFileMtime(filePath: string): Promise<number | null> {
   try {
-    const s = await stat(path.join(gitCommonDir, "FETCH_HEAD"));
+    const s = await stat(filePath);
     return s.mtimeMs;
   } catch { return null; }
 }
@@ -38,12 +40,19 @@ export async function collectGitInfo(projectDir: string): Promise<GitInfo> {
 
   const cached = gitCache.get(projectDir);
 
-  // Fetch PR only when: no cache, branch changed, or FETCH_HEAD updated (push/pull/fetch happened)
-  const fetchHeadMtime = gitCommonDir ? await getFetchHeadMtime(gitCommonDir) : null;
+  // Fetch PR only when: no cache, branch changed, FETCH_HEAD updated, remote ref updated, or cache expired
+  const [fetchHeadMtime, remoteRefMtime] = await Promise.all([
+    gitCommonDir ? getFileMtime(path.join(gitCommonDir, "FETCH_HEAD")) : Promise.resolve(null),
+    // refs/remotes/origin/<branch> is updated on git push
+    gitCommonDir && gitBranch ? getFileMtime(path.join(gitCommonDir, "refs", "remotes", "origin", gitBranch)) : Promise.resolve(null),
+  ]);
   const branchChanged = cached?.lastBranch !== gitBranch;
   const fetchHeadChanged = fetchHeadMtime !== null && fetchHeadMtime !== cached?.lastFetchHeadMtime;
+  const remoteRefChanged = remoteRefMtime !== null && remoteRefMtime !== cached?.lastRemoteRefMtime;
+  // If prUrl is null, retry every 5 min as fallback for GitHub-only events (PR created without local git op)
+  const cacheExpired = cached && !cached.data.prUrl && (Date.now() - cached.cachedAt) > 300_000;
 
-  if (cached && !branchChanged && !fetchHeadChanged) {
+  if (cached && !branchChanged && !fetchHeadChanged && !remoteRefChanged && !cacheExpired) {
     return { ...cached.data, gitBranch, gitCommonDir };
   }
 
@@ -62,6 +71,6 @@ export async function collectGitInfo(projectDir: string): Promise<GitInfo> {
   }
 
   const data = { gitBranch, gitCommonDir, prUrl, prTitle };
-  gitCache.set(projectDir, { data, lastBranch: gitBranch, lastFetchHeadMtime: fetchHeadMtime });
+  gitCache.set(projectDir, { data, lastBranch: gitBranch, lastFetchHeadMtime: fetchHeadMtime, lastRemoteRefMtime: remoteRefMtime, cachedAt: Date.now() });
   return data;
 }
