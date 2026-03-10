@@ -4,6 +4,7 @@ let lastData = null;
 let starredPids = new Set(JSON.parse(localStorage.getItem("starredPids") || "[]"));
 let editorSectionCollapsed = localStorage.getItem("editorSectionCollapsed") === "true";
 let hiddenColumns = new Set(JSON.parse(localStorage.getItem("hiddenColumns") || "[]"));
+let rowOrder = JSON.parse(localStorage.getItem("rowOrder") || "null");
 let selectedKey = null;
 
 const COL_DEFS = [
@@ -258,8 +259,9 @@ function tableRowHtml(proc, extraProcs = []) {
         ...stopped.map(c => `<span class="container-stopped">${escapeHtml(c.service)}</span>`),
       ].join(" ")}</span>`
     : "";
+  const rowKey = escapeHtml(proc.projectDir ?? String(proc.pid));
   return `
-    <tr class="${proc.status}" data-pid="${proc.pid}"${proc.editorApp ? ` data-editor-app="${proc.editorApp}"` : ""} tabindex="0" role="button">
+    <tr class="${proc.status}" data-pid="${proc.pid}" data-row-key="${rowKey}"${proc.editorApp ? ` data-editor-app="${proc.editorApp}"` : ""} tabindex="0" role="button" draggable="true">
       <td class="tbl-star${starredPids.has(proc.pid) ? " starred" : ""}" data-star-pid="${proc.pid}">${starredPids.has(proc.pid) ? "★" : "☆"}</td>
       <td class="tbl-project"><div>${escapeHtml(orgRepo(proc.projectDir, proc.gitCommonDir))}</div><div class="tbl-project-dir">${escapeHtml(shortenPath(proc.projectDir))}</div></td>
       <td class="tbl-branch">${proc.gitBranch ? `<span class="tbl-branch-name"><img src="git-branch.svg" class="git-branch-icon" alt="branch"> ${escapeHtml(proc.gitBranch)}</span>` : ""}</td>
@@ -279,15 +281,27 @@ function tableRowHtml(proc, extraProcs = []) {
 }
 
 function renderTable(data, grid) {
-  const tableRows = mergeByDir([...data.processes])
-    .sort((a, b) => {
+  const mergedRows = mergeByDir([...data.processes]);
+  let sorted;
+  if (rowOrder && rowOrder.length > 0) {
+    const orderMap = new Map(rowOrder.map((k, i) => [k, i]));
+    sorted = [...mergedRows].sort((a, b) => {
+      const aKey = a.primary.projectDir ?? String(a.primary.pid);
+      const bKey = b.primary.projectDir ?? String(b.primary.pid);
+      const ai = orderMap.has(aKey) ? orderMap.get(aKey) : Infinity;
+      const bi = orderMap.has(bKey) ? orderMap.get(bKey) : Infinity;
+      return ai - bi;
+    });
+  } else {
+    sorted = [...mergedRows].sort((a, b) => {
       const aStarred = starredPids.has(a.primary.pid) ? 0 : 1;
       const bStarred = starredPids.has(b.primary.pid) ? 0 : 1;
       if (aStarred !== bStarred) return aStarred - bStarred;
       return orgRepo(a.primary.projectDir, a.primary.gitCommonDir)
         .localeCompare(orgRepo(b.primary.projectDir, b.primary.gitCommonDir));
-    })
-    .map(({ primary, extras }) => tableRowHtml(primary, extras)).join("");
+    });
+  }
+  const tableRows = sorted.map(({ primary, extras }) => tableRowHtml(primary, extras)).join("");
 
   const editorRows = (data.editorWindows && data.editorWindows.length > 0)
     ? `<tr class="tbl-group-row tbl-editor-group tbl-editor-toggle" tabindex="0" role="button">
@@ -389,7 +403,63 @@ function renderTable(data, grid) {
     });
   });
 
+  setupDragAndDrop(grid);
   applySelectedClass(grid);
+}
+
+function setupDragAndDrop(grid) {
+  const rows = [...grid.querySelectorAll("tr[data-row-key]")];
+  let dragSrcKey = null;
+
+  const clearIndicators = () => rows.forEach(r => r.classList.remove("drag-over-above", "drag-over-below"));
+
+  rows.forEach(row => {
+    row.addEventListener("dragstart", (e) => {
+      dragSrcKey = row.dataset.rowKey;
+      e.dataTransfer.effectAllowed = "move";
+      setTimeout(() => row.classList.add("dragging"), 0);
+    });
+
+    row.addEventListener("dragend", () => {
+      row.classList.remove("dragging");
+      clearIndicators();
+      dragSrcKey = null;
+    });
+
+    row.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      clearIndicators();
+      const rect = row.getBoundingClientRect();
+      if (e.clientY < rect.top + rect.height / 2) {
+        row.classList.add("drag-over-above");
+      } else {
+        row.classList.add("drag-over-below");
+      }
+    });
+
+    row.addEventListener("dragleave", () => clearIndicators());
+
+    row.addEventListener("drop", (e) => {
+      e.preventDefault();
+      if (!dragSrcKey || dragSrcKey === row.dataset.rowKey) return;
+
+      const targetKey = row.dataset.rowKey;
+      const rect = row.getBoundingClientRect();
+      const insertBefore = e.clientY < rect.top + rect.height / 2;
+
+      const currentOrder = rows.map(r => r.dataset.rowKey);
+      const srcIdx = currentOrder.indexOf(dragSrcKey);
+      currentOrder.splice(srcIdx, 1);
+      const newTgtIdx = currentOrder.indexOf(targetKey);
+      currentOrder.splice(insertBefore ? newTgtIdx : newTgtIdx + 1, 0, dragSrcKey);
+
+      rowOrder = currentOrder;
+      localStorage.setItem("rowOrder", JSON.stringify(rowOrder));
+      clearIndicators();
+      if (lastData) render(lastData);
+    });
+  });
 }
 
 function renderUsage(usage) {
@@ -417,6 +487,9 @@ function renderUsage(usage) {
   }
   if (u.authError === true) {
     parts.push(`<span class="usage-reauth" title="claude logout &amp;&amp; claude login">🔒 要再認証</span>`);
+  }
+  if (u.oauthDisabled === true) {
+    parts.push(`<span class="usage-oauth-disabled" title="BYAKUGAN_OAUTH_FETCH=false">OAuth off</span>`);
   }
   usageEl.innerHTML = parts.join("");
 }
