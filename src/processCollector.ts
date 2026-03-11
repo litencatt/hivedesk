@@ -9,6 +9,11 @@ import { EDITOR_CONFIGS } from "./editorConfig.js";
 
 const MCP_BRIDGE_PATHS = ["/mcp", "mcp-server", "mcp_server", ".mcp"];
 
+const DEBUG = process.env.BYAKUGAN_DEBUG === "true";
+function dbg(phase: string, ms: number, extra = "") {
+  if (DEBUG) console.log(`[collector] ${phase}: ${ms}ms${extra ? " " + extra : ""}`);
+}
+
 function findEditorApp(
   pid: number,
   procMap: Map<number, { ppid: number; command: string }>
@@ -29,9 +34,11 @@ function findEditorApp(
 
 async function enrichProcess(pid: number): Promise<Partial<ClaudeProcess> & { inputTokens: number; outputTokens: number }> {
   try {
-    const { stdout } = await execFileAsync("lsof", ["-p", String(pid)], { maxBuffer: 10 * 1024 * 1024 });
-    const lines = stdout.split("\n");
+    let t = Date.now();
+    const { stdout } = await execFileAsync("lsof", ["-p", String(pid), "-n", "-P"], { maxBuffer: 10 * 1024 * 1024, timeout: 5000 });
+    dbg(`lsof pid=${pid}`, Date.now() - t);
 
+    const lines = stdout.split("\n");
     const cwdLine = lines.find(l => / cwd /.test(l));
     const projectDir = cwdLine?.trim().split(/\s+/).pop() ?? null;
 
@@ -50,13 +57,15 @@ async function enrichProcess(pid: number): Promise<Partial<ClaudeProcess> & { in
       .map(p => p.replace(projectDir + "/", ""))
       .filter((v, i, a) => a.indexOf(v) === i);
 
+    t = Date.now();
     const [{ currentTask: sessionTask, modelName, inputTokens, outputTokens, claudeStatus }, containers, { gitBranch, gitCommonDir, prUrl, prTitle }] = await Promise.all([
       collectSessionData(projectDir),
       collectDockerContainers(projectDir),
       collectGitInfo(projectDir),
     ]);
-    const currentTask = sessionTask ?? openFiles[0] ?? null;
+    dbg(`session+docker+git pid=${pid}`, Date.now() - t);
 
+    const currentTask = sessionTask ?? openFiles[0] ?? null;
     return { projectDir, openFiles, currentTask, gitBranch, gitCommonDir, modelName, prUrl, prTitle, containers, inputTokens, outputTokens, claudeStatus };
   } catch {
     return { projectDir: "", openFiles: [], currentTask: null, inputTokens: 0, outputTokens: 0, claudeStatus: null };
@@ -64,10 +73,12 @@ async function enrichProcess(pid: number): Promise<Partial<ClaudeProcess> & { in
 }
 
 export async function collectProcesses(): Promise<DashboardData> {
+  const t0 = Date.now();
   const [{ stdout }, { stdout: psAllOut }] = await Promise.all([
     execFileAsync("ps", ["-eo", "pid,ppid,pcpu,pmem,etime,stat,comm"]),
     execFileAsync("ps", ["-eo", "pid,ppid,command"]),
   ]);
+  dbg("ps", Date.now() - t0);
   const lines = stdout.trim().split("\n").slice(1);
 
   const allProcMap = new Map<number, { ppid: number; command: string }>();
@@ -108,6 +119,7 @@ export async function collectProcesses(): Promise<DashboardData> {
     }
   }
 
+  const te = Date.now();
   const [enrichedWithTokens, rateLimitUsage] = await Promise.all([
     Promise.all(
       claudeProcesses.map(async (proc) => {
@@ -150,13 +162,17 @@ export async function collectProcesses(): Promise<DashboardData> {
     collectRateLimitUsage(),
   ]);
 
+  dbg("enrich all processes", Date.now() - te, `(${claudeProcesses.length} procs)`);
+
   const enriched = enrichedWithTokens.map(e => e.process);
   const totalInputTokens = enrichedWithTokens.reduce((sum, e) => sum + e.inputTokens, 0);
   const totalOutputTokens = enrichedWithTokens.reduce((sum, e) => sum + e.outputTokens, 0);
 
   const nonBridge = enriched.filter(p => !p.isMcpBridge);
 
+  const tw = Date.now();
   const allEditorWindows = await collectEditorWindows();
+  dbg("collectEditorWindows", Date.now() - tw);
 
   const visible = nonBridge.map(p => ({
     ...p,
