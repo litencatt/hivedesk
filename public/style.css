@@ -502,9 +502,53 @@ main {
 }
 
 .tbl-icons {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  gap: 4px;
+}
+
+.row-delete-btn {
   display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  background: var(--border);
+  border: none;
+  border-radius: 50%;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
+  line-height: 1;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  flex-shrink: 0;
+}
+.row-delete-btn:hover {
+  background: #da3633;
+  color: #fff;
+}
+
+.row-restore-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--border);
+  border: none;
+  border-radius: 50%;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  flex-shrink: 0;
+}
+.row-restore-btn:hover {
+  background: var(--green);
+  color: #fff;
 }
 
 .tbl-path {

@@ -11,7 +11,7 @@
     "build": "tsc && npm run build:swift",
     "build:swift": "swift build -c release --package-path tools/focus-window",
     "start": "node dist/server.js",
-    "dev": "tsx watch src/server.ts",
+    "dev": "BYAKUGAN_DEBUG=true tsx watch src/server.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

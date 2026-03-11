@@ -2,8 +2,10 @@ let es = null;
 let demoMode = false;
 let lastData = null;
 let starredPids = new Set(JSON.parse(localStorage.getItem("starredPids") || "[]"));
+let starredDirs = new Set(JSON.parse(localStorage.getItem("starredDirs") || "[]"));
 let editorSectionCollapsed = localStorage.getItem("editorSectionCollapsed") === "true";
 let hiddenColumns = new Set(JSON.parse(localStorage.getItem("hiddenColumns") || "[]"));
+let hiddenRows = new Set(JSON.parse(localStorage.getItem("hiddenRows") || "[]"));
 let rowOrder = JSON.parse(localStorage.getItem("rowOrder") || "null");
 let selectedKey = null;
 
@@ -275,54 +277,111 @@ function tableRowHtml(proc, extraProcs = []) {
         ${proc.editorApp ? `<img src="${proc.editorApp}.svg" class="editor-icon" alt="${proc.editorApp}">` : ""}
         <img src="claude.svg" class="claude-icon" alt="Claude">
         ${extraProcs.length > 0 ? `<span class="duplicate-badge">×${extraProcs.length + 1}</span>` : ""}
+        <button class="row-delete-btn" data-delete-key="${rowKey}" title="非表示">×</button>
       </td>
+    </tr>
+  `;
+}
+
+function editorRowHtml(w) {
+  return `
+    <tr class="tbl-editor-row" data-dir="${escapeHtml(w.projectDir)}" data-app="${escapeHtml(w.app)}" tabindex="0" role="button">
+      <td class="tbl-star${starredDirs.has(w.projectDir) ? " starred" : ""}" data-star-dir="${escapeHtml(w.projectDir)}">${starredDirs.has(w.projectDir) ? "★" : "☆"}</td>
+      <td class="tbl-project"><div>${escapeHtml(orgRepo(w.projectDir, w.gitCommonDir))}</div><div class="tbl-project-dir">${escapeHtml(shortenPath(w.projectDir))}</div></td>
+      <td class="tbl-branch">${w.gitBranch ? `<span class="tbl-branch-name"><img src="git-branch.svg" class="git-branch-icon" alt="branch"> ${escapeHtml(w.gitBranch)}</span>` : ""}</td>
+      <td class="tbl-pr">${w.prUrl ? `<a class="pr-link" href="${escapeHtml(w.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${w.prTitle ? `#${escapeHtml(w.prUrl.split("/").pop() ?? "")}: ${escapeHtml(w.prTitle)}` : `#${escapeHtml(w.prUrl.split("/").pop() ?? "")}`}</a>` : ""}</td>
+      <td class="tbl-containers"></td>
+      <td class="tbl-status"></td>
+      <td class="tbl-stat"></td>
+      <td class="tbl-stat"></td>
+      <td class="tbl-stat"></td>
+      <td class="tbl-icons"><img src="${w.app}.svg" class="editor-icon" alt="${w.app}"><button class="row-delete-btn" data-delete-key="${escapeHtml(w.projectDir)}" title="非表示">×</button></td>
     </tr>
   `;
 }
 
 function renderTable(data, grid) {
   const mergedRows = mergeByDir([...data.processes]);
-  let sorted;
-  if (rowOrder && rowOrder.length > 0) {
-    const orderMap = new Map(rowOrder.map((k, i) => [k, i]));
-    sorted = [...mergedRows].sort((a, b) => {
-      const aKey = a.primary.projectDir ?? String(a.primary.pid);
-      const bKey = b.primary.projectDir ?? String(b.primary.pid);
-      const ai = orderMap.has(aKey) ? orderMap.get(aKey) : Infinity;
-      const bi = orderMap.has(bKey) ? orderMap.get(bKey) : Infinity;
-      return ai - bi;
-    });
-  } else {
-    sorted = [...mergedRows].sort((a, b) => {
-      const aStarred = starredPids.has(a.primary.pid) ? 0 : 1;
-      const bStarred = starredPids.has(b.primary.pid) ? 0 : 1;
-      if (aStarred !== bStarred) return aStarred - bStarred;
-      return orgRepo(a.primary.projectDir, a.primary.gitCommonDir)
-        .localeCompare(orgRepo(b.primary.projectDir, b.primary.gitCommonDir));
-    });
-  }
-  const tableRows = sorted.map(({ primary, extras }) => tableRowHtml(primary, extras)).join("");
+  const claudeDirs = new Set(data.processes.map(p => p.projectDir).filter(Boolean));
 
-  const editorRows = (data.editorWindows && data.editorWindows.length > 0)
+  const claudeVisible = [...mergedRows]
+    .filter(({ primary }) => !hiddenRows.has(primary.projectDir ?? String(primary.pid)));
+  const editorVisible = (data.editorWindows ?? [])
+    .filter(w => !claudeDirs.has(w.projectDir) && !hiddenRows.has(w.projectDir));
+
+  // 全行を統合してスター優先→ソート（rowOrderはClaudeプロセス行のタイブレーカーに使用）
+  const orderMap = rowOrder && rowOrder.length > 0
+    ? new Map(rowOrder.map((k, i) => [k, i]))
+    : null;
+
+  const allItems = [
+    ...claudeVisible.map(({ primary, extras }) => ({
+      starred: starredPids.has(primary.pid),
+      name: orgRepo(primary.projectDir, primary.gitCommonDir),
+      order: orderMap ? (orderMap.get(primary.projectDir ?? String(primary.pid)) ?? Infinity) : Infinity,
+      isEditor: false,
+      html: tableRowHtml(primary, extras),
+    })),
+    ...editorVisible.map(w => ({
+      starred: starredDirs.has(w.projectDir),
+      name: orgRepo(w.projectDir, w.gitCommonDir),
+      order: Infinity,
+      isEditor: true,
+      html: editorRowHtml(w),
+    })),
+  ];
+
+  const tableRows = allItems
+    .sort((a, b) => {
+      // スター付きを先頭に
+      if (a.starred !== b.starred) return a.starred ? -1 : 1;
+      // D&Dカスタム順（Claudeプロセス行のみ）
+      if (!a.isEditor && !b.isEditor && a.order !== b.order) return a.order - b.order;
+      // エディタ行はClaudeプロセス行の後（非スター時）
+      if (a.isEditor !== b.isEditor) return a.isEditor ? 1 : -1;
+      // 同種はアルファベット順
+      return a.name.localeCompare(b.name);
+    })
+    .map(item => item.html)
+    .join("");
+
+  // Recently Opened Projects: rows dismissed via × button
+  const dismissedKeys = new Set();
+  const dismissed = [];
+  for (const { primary } of mergedRows) {
+    const key = primary.projectDir ?? String(primary.pid);
+    if (hiddenRows.has(key) && !dismissedKeys.has(key)) {
+      dismissedKeys.add(key);
+      dismissed.push({ key, projectDir: primary.projectDir, gitCommonDir: primary.gitCommonDir, gitBranch: primary.gitBranch, prUrl: primary.prUrl, prTitle: primary.prTitle, app: primary.editorApp });
+    }
+  }
+  for (const w of (data.editorWindows ?? [])) {
+    if (hiddenRows.has(w.projectDir) && !dismissedKeys.has(w.projectDir)) {
+      dismissedKeys.add(w.projectDir);
+      dismissed.push({ key: w.projectDir, projectDir: w.projectDir, gitCommonDir: w.gitCommonDir, gitBranch: w.gitBranch, prUrl: w.prUrl, prTitle: w.prTitle, app: w.app });
+    }
+  }
+
+  const recentlyOpenedRows = dismissed.length > 0
     ? `<tr class="tbl-group-row tbl-editor-group tbl-editor-toggle" tabindex="0" role="button">
-        <td colspan="9" class="tbl-group-cell">
+        <td colspan="10" class="tbl-group-cell">
           <span class="tbl-collapse-icon">${editorSectionCollapsed ? "▶" : "▼"}</span> Recently Opened Projects
         </td>
        </tr>` +
-      (editorSectionCollapsed ? "" : [...data.editorWindows]
-        .sort((a, b) => (a.projectName ?? "").localeCompare(b.projectName ?? ""))
-        .map(w => `
-          <tr class="tbl-editor-row" data-dir="${escapeHtml(w.projectDir)}" data-app="${escapeHtml(w.app)}" tabindex="0" role="button">
-            <td></td>
-            <td class="tbl-project"><div>${escapeHtml(orgRepo(w.projectDir, w.gitCommonDir))}</div><div class="tbl-project-dir">${escapeHtml(shortenPath(w.projectDir))}</div></td>
-            <td class="tbl-branch">${w.gitBranch ? `<span class="tbl-branch-name"><img src="git-branch.svg" class="git-branch-icon" alt="branch"> ${escapeHtml(w.gitBranch)}</span>` : ""}</td>
-            <td class="tbl-pr">${w.prUrl ? `<a class="pr-link" href="${escapeHtml(w.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${w.prTitle ? `#${escapeHtml(w.prUrl.split("/").pop() ?? "")}: ${escapeHtml(w.prTitle)}` : `#${escapeHtml(w.prUrl.split("/").pop() ?? "")}`}</a>` : ""}</td>
+      (editorSectionCollapsed ? "" : dismissed
+        .sort((a, b) => orgRepo(a.projectDir, a.gitCommonDir).localeCompare(orgRepo(b.projectDir, b.gitCommonDir)))
+        .map(d => `
+          <tr class="tbl-editor-row" data-dir="${escapeHtml(d.projectDir)}" data-app="${d.app ? escapeHtml(d.app) : ""}" tabindex="0" role="button">
+            <td class="tbl-star${starredDirs.has(d.projectDir) ? " starred" : ""}" data-star-dir="${escapeHtml(d.projectDir)}">${starredDirs.has(d.projectDir) ? "★" : "☆"}</td>
+            <td class="tbl-project"><div>${escapeHtml(orgRepo(d.projectDir, d.gitCommonDir))}</div><div class="tbl-project-dir">${escapeHtml(shortenPath(d.projectDir))}</div></td>
+            <td class="tbl-branch">${d.gitBranch ? `<span class="tbl-branch-name"><img src="git-branch.svg" class="git-branch-icon" alt="branch"> ${escapeHtml(d.gitBranch)}</span>` : ""}</td>
+            <td class="tbl-pr">${d.prUrl ? `<a class="pr-link" href="${escapeHtml(d.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${d.prTitle ? `#${escapeHtml(d.prUrl.split("/").pop() ?? "")}: ${escapeHtml(d.prTitle)}` : `#${escapeHtml(d.prUrl.split("/").pop() ?? "")}`}</a>` : ""}</td>
             <td class="tbl-containers"></td>
             <td class="tbl-status"></td>
             <td class="tbl-stat"></td>
             <td class="tbl-stat"></td>
             <td class="tbl-stat"></td>
-            <td class="tbl-icons"><img src="${w.app}.svg" class="editor-icon" alt="${w.app}"></td>
+            <td class="tbl-icons">${d.app ? `<img src="${escapeHtml(d.app)}.svg" class="editor-icon" alt="${escapeHtml(d.app)}">` : ""}<button class="row-restore-btn" data-restore-key="${escapeHtml(d.key)}" title="メインに戻す">↩</button></td>
           </tr>
         `).join(""))
     : "";
@@ -343,7 +402,7 @@ function renderTable(data, grid) {
     <table class="process-table">
       ${colgroupHtml}
       ${theadHtml}
-      <tbody>${tableRows}${editorRows}</tbody>
+      <tbody>${tableRows}${recentlyOpenedRows}</tbody>
     </table>
   `;
 
@@ -372,12 +431,56 @@ function renderTable(data, grid) {
     });
   });
 
+  grid.querySelectorAll(".tbl-star[data-star-dir]").forEach(cell => {
+    const dir = cell.dataset.starDir;
+    cell.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (starredDirs.has(dir)) starredDirs.delete(dir);
+      else starredDirs.add(dir);
+      localStorage.setItem("starredDirs", JSON.stringify([...starredDirs]));
+      if (lastData) render(lastData);
+    });
+  });
+
   grid.querySelectorAll("tr[data-pid]").forEach(row => {
     const pid = parseInt(row.dataset.pid);
     const hasEditor = !!row.dataset.editorApp;
     row.addEventListener("click", () => { selectedKey = String(pid); applySelectedClass(grid); if (hasEditor) focusWindow(pid, row); });
     row.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") { selectedKey = String(pid); applySelectedClass(grid); if (hasEditor) focusWindow(pid, row); }
+    });
+  });
+
+  grid.querySelectorAll("tr[data-dir]").forEach(row => {
+    const dir = row.dataset.dir;
+    const app = row.dataset.app;
+    row.addEventListener("click", () => { selectedKey = dir; applySelectedClass(grid); focusEditorWindow(dir, app, row); });
+    row.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { selectedKey = dir; applySelectedClass(grid); focusEditorWindow(dir, app, row); }
+    });
+  });
+
+  grid.querySelectorAll(".row-delete-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const key = btn.dataset.deleteKey;
+      if (key) {
+        hiddenRows.add(key);
+        localStorage.setItem("hiddenRows", JSON.stringify([...hiddenRows]));
+        if (lastData) render(lastData);
+      }
+    });
+  });
+
+  grid.querySelectorAll(".row-restore-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const key = btn.dataset.restoreKey;
+      if (key) {
+        hiddenRows.delete(key);
+        localStorage.setItem("hiddenRows", JSON.stringify([...hiddenRows]));
+        if (lastData) render(lastData);
+      }
     });
   });
 
@@ -393,15 +496,6 @@ function renderTable(data, grid) {
       if (e.key === "Enter" || e.key === " ") toggle();
     });
   }
-
-  grid.querySelectorAll("tr[data-dir]").forEach(row => {
-    const dir = row.dataset.dir;
-    const app = row.dataset.app;
-    row.addEventListener("click", () => { selectedKey = dir; applySelectedClass(grid); focusEditorWindow(dir, app, row); });
-    row.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") { selectedKey = dir; applySelectedClass(grid); focusEditorWindow(dir, app, row); }
-    });
-  });
 
   setupDragAndDrop(grid);
   applySelectedClass(grid);
@@ -568,3 +662,4 @@ document.getElementById("demo-toggle").addEventListener("click", function () {
   this.classList.toggle("active", demoMode);
   if (lastData) render(lastData);
 });
+
