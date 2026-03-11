@@ -2,7 +2,7 @@ import express, { Request, Response } from "express";
 import path from "path";
 import { watch } from "fs";
 import { collectProcesses } from "./processCollector.js";
-import { focusVSCodeWindow } from "./vscodeController.js";
+import { focusVSCodeWindow, openWorktreeInVSCode } from "./vscodeController.js";
 import { DashboardData } from "./types.js";
 
 const app = express();
@@ -102,6 +102,21 @@ app.post("/api/focus-editor", async (req: Request, res: Response) => {
   // Respond immediately, focus in background
   res.json({ success: true });
   focusVSCodeWindow(projectDir, editorApp === "cursor" ? "cursor" : "vscode").catch(() => {});
+});
+
+// Open worktree in VSCode via extension
+app.post("/api/open-worktree", async (req: Request, res: Response) => {
+  const { path: worktreePath, newWindow } = req.body as { path?: string; newWindow?: boolean };
+  if (!worktreePath) {
+    res.status(400).json({ error: "path is required" });
+    return;
+  }
+  const success = await openWorktreeInVSCode(worktreePath, newWindow);
+  if (success) {
+    res.json({ success: true });
+  } else {
+    res.status(502).json({ success: false, error: "VSCode extension not reachable" });
+  }
 });
 
 // SSE stream

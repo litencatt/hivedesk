@@ -14,6 +14,16 @@ function hasSwiftBinary(): boolean {
   }
 }
 
+export async function openWorktreeInVSCode(worktreePath: string, newWindow?: boolean): Promise<boolean> {
+  try {
+    const flag = newWindow ? "--new-window" : "--reuse-window";
+    await execFileAsync("code", [flag, worktreePath]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function focusVSCodeWindow(projectDir: string, app: "vscode" | "cursor" = "vscode"): Promise<boolean> {
   const config = EDITOR_CONFIGS.find(c => c.app === app);
   if (!config) return false;

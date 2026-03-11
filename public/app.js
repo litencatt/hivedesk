@@ -301,6 +301,7 @@ function tableRowHtml(proc, extraProcs = []) {
         ${proc.editorApp ? `<img src="${proc.editorApp}.svg" class="editor-icon" alt="${proc.editorApp}">` : ""}
         <img src="claude.svg" class="claude-icon" alt="Claude">
         ${extraProcs.length > 0 ? `<span class="duplicate-badge">×${extraProcs.length + 1}</span>` : ""}
+        <button class="row-open-vscode-btn" data-open-path="${rowKey}" title="VSCodeで開く" onclick="event.stopPropagation();openInVSCode(this.dataset.openPath)">⬡</button>
         <button class="row-delete-btn" data-delete-key="${rowKey}" title="非表示">×</button>
       </td>
     </tr>
@@ -319,7 +320,7 @@ function editorRowHtml(w) {
       <td class="tbl-stat"></td>
       <td class="tbl-stat"></td>
       <td class="tbl-stat"></td>
-      <td class="tbl-icons"><img src="${w.app}.svg" class="editor-icon" alt="${w.app}"><button class="row-delete-btn" data-delete-key="${escapeHtml(w.projectDir)}" title="非表示">×</button></td>
+      <td class="tbl-icons"><img src="${w.app}.svg" class="editor-icon" alt="${w.app}"><button class="row-open-vscode-btn" data-open-path="${escapeHtml(w.projectDir)}" title="VSCodeで開く" onclick="event.stopPropagation();openInVSCode(this.dataset.openPath)">⬡</button><button class="row-delete-btn" data-delete-key="${escapeHtml(w.projectDir)}" title="非表示">×</button></td>
     </tr>
   `;
 }
@@ -709,6 +710,14 @@ function focusEditorWindow(dir, app, cardEl) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ projectDir: dir, app }),
+  }).catch(() => {});
+}
+
+function openInVSCode(worktreePath, newWindow) {
+  fetch("/api/open-worktree", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path: worktreePath, newWindow: newWindow ?? false }),
   }).catch(() => {});
 }
 
