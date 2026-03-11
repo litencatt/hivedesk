@@ -18,12 +18,13 @@ const COL_DEFS = [
   { key: "project",    fixed: null,   label: "Project",    stat: false, sortable: true  },
   { key: "branch",     fixed: null,   label: "Branch",     stat: false, sortable: true  },
   { key: "pr",         fixed: null,   label: "PR",         stat: false, sortable: false },
-  { key: "containers", fixed: null,   label: "Containers", stat: false, sortable: false },
-  { key: "status",     fixed: null,   label: "Status",     stat: false, sortable: false },
-  { key: "cpu",        fixed: null,   label: "CPU",        stat: true,  sortable: true  },
-  { key: "mem",        fixed: null,   label: "MEM",        stat: true,  sortable: true  },
-  { key: "uptime",     fixed: null,   label: "Uptime",     stat: true,  sortable: true  },
-  { key: "icons",      fixed: null,   label: "",           stat: false, sortable: false },
+  { key: "containers", fixed: "70px",  label: "Containers", stat: false, sortable: false },
+  { key: "status",     fixed: "110px", label: "Status",     stat: false, sortable: false },
+  { key: "cpu",        fixed: "64px",  label: "CPU",        stat: true,  sortable: true  },
+  { key: "mem",        fixed: "64px",  label: "MEM",        stat: true,  sortable: true  },
+  { key: "uptime",     fixed: "82px",  label: "Uptime",     stat: true,  sortable: true  },
+  { key: "icons",      fixed: "52px",  label: "",           stat: false, sortable: false },
+  { key: "actions",   fixed: "32px",  label: "",           stat: false, sortable: false },
 ];
 
 const HIDDEN_COL_W = "14px";
@@ -39,16 +40,8 @@ function updateHiddenColStyles() {
   COL_DEFS.forEach((c, i) => {
     if (hiddenColumns.has(c.key)) {
       const n = i + 1;
-      if (c.key === "containers") {
-        rules.push(`.process-table td:nth-child(${n}) .containers-full { display: none !important; }`);
-        rules.push(`.process-table td:nth-child(${n}) .containers-summary { display: inline !important; }`);
-      } else if (c.key === "status") {
-        rules.push(`.process-table td:nth-child(${n}) .status-full { display: none !important; }`);
-        rules.push(`.process-table td:nth-child(${n}) .status-summary { display: inline !important; }`);
-      } else {
-        rules.push(`.process-table td:nth-child(${n}) { width: 0 !important; max-width: 0 !important; min-width: 0 !important; padding: 0 !important; overflow: hidden; font-size: 0 !important; color: transparent !important; }`);
-        rules.push(`.process-table td:nth-child(${n}) > * { display: none !important; }`);
-      }
+      rules.push(`.process-table td:nth-child(${n}) { padding: 0 !important; overflow: hidden; }`);
+      rules.push(`.process-table td:nth-child(${n}) > * { display: none !important; }`);
     }
   });
   styleEl.textContent = rules.join("\n");
@@ -276,14 +269,14 @@ function statusEmoji(proc) {
 function tableRowHtml(proc, extraProcs = []) {
   const running = (proc.containers ?? []).filter(c => c.state === "running");
   const stopped = (proc.containers ?? []).filter(c => c.state !== "running");
+  const containerTooltip = proc.containers && proc.containers.length > 0
+    ? [...running.map(c => `▶ ${c.service}`), ...stopped.map(c => `■ ${c.service}`)].join("\n")
+    : "";
   const containersSummary = proc.containers && proc.containers.length > 0 && running.length > 0
     ? `<span class="containers-summary">🐳 ${running.length}</span>`
     : `<span class="containers-summary"></span>`;
   const containersHtml = proc.containers && proc.containers.length > 0
-    ? `${containersSummary}<span class="containers-full">🐳 <span class="containers-count">${running.length}/${proc.containers.length}</span> ${[
-        ...running.map(c => `<span class="container-running">${escapeHtml(c.service)}</span>`),
-        ...stopped.map(c => `<span class="container-stopped">${escapeHtml(c.service)}</span>`),
-      ].join(" ")}</span>`
+    ? `${containersSummary}<span class="containers-full" title="${escapeHtml(containerTooltip)}">🐳 <span class="containers-count">${running.length}/${proc.containers.length}</span></span>`
     : "";
   const rowKey = escapeHtml(proc.projectDir ?? String(proc.pid));
   return `
@@ -301,6 +294,8 @@ function tableRowHtml(proc, extraProcs = []) {
         ${proc.editorApp ? `<img src="${proc.editorApp}.svg" class="editor-icon" alt="${proc.editorApp}">` : ""}
         <img src="claude.svg" class="claude-icon" alt="Claude">
         ${extraProcs.length > 0 ? `<span class="duplicate-badge">×${extraProcs.length + 1}</span>` : ""}
+      </td>
+      <td class="tbl-actions">
         <button class="row-delete-btn" data-delete-key="${rowKey}" title="非表示">×</button>
       </td>
     </tr>
@@ -319,7 +314,8 @@ function editorRowHtml(w) {
       <td class="tbl-stat"></td>
       <td class="tbl-stat"></td>
       <td class="tbl-stat"></td>
-      <td class="tbl-icons"><img src="${w.app}.svg" class="editor-icon" alt="${w.app}"><button class="row-delete-btn" data-delete-key="${escapeHtml(w.projectDir)}" title="非表示">×</button></td>
+      <td class="tbl-icons"><img src="${w.app}.svg" class="editor-icon" alt="${w.app}"></td>
+      <td class="tbl-actions"><button class="row-delete-btn" data-delete-key="${escapeHtml(w.projectDir)}" title="非表示">×</button></td>
     </tr>
   `;
 }
@@ -407,7 +403,7 @@ function renderTable(data, grid) {
 
   const recentlyOpenedRows = dismissed.length > 0
     ? `<tr class="tbl-group-row tbl-editor-group tbl-editor-toggle" tabindex="0" role="button">
-        <td colspan="10" class="tbl-group-cell">
+        <td colspan="11" class="tbl-group-cell">
           <span class="tbl-collapse-icon">${editorSectionCollapsed ? "▶" : "▼"}</span> Recently Opened Projects
         </td>
        </tr>` +
@@ -424,14 +420,15 @@ function renderTable(data, grid) {
             <td class="tbl-stat"></td>
             <td class="tbl-stat"></td>
             <td class="tbl-stat"></td>
-            <td class="tbl-icons">${d.app ? `<img src="${escapeHtml(d.app)}.svg" class="editor-icon" alt="${escapeHtml(d.app)}">` : ""}<button class="row-restore-btn" data-restore-key="${escapeHtml(d.key)}" title="メインに戻す">↩</button></td>
+            <td class="tbl-icons">${d.app ? `<img src="${escapeHtml(d.app)}.svg" class="editor-icon" alt="${escapeHtml(d.app)}">` : ""}</td>
+            <td class="tbl-actions"><button class="row-restore-btn" data-restore-key="${escapeHtml(d.key)}" title="メインに戻す">↩</button></td>
           </tr>
         `).join(""))
     : "";
 
   const colgroupHtml = `<colgroup>${COL_DEFS.map(c => {
     const hidden = hiddenColumns.has(c.key);
-    const w = hidden ? null : c.fixed;
+    const w = hidden ? HIDDEN_COL_W : c.fixed;
     return `<col${w ? ` style="width:${w}"` : ""}>`;
   }).join("")}</colgroup>`;
 
@@ -440,9 +437,9 @@ function renderTable(data, grid) {
     const cls = [c.stat && !hidden ? "tbl-stat" : "", hidden ? "col-toggled" : ""].filter(Boolean).join(" ");
     if (c.sortable) {
       const indicator = sortCol === c.key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
-      return `<th${cls ? ` class="${cls}"` : ""} data-col-sort="${c.key}" title="${c.label}">${c.label}${indicator}</th>`;
+      return `<th${cls ? ` class="${cls}"` : ""} data-col-sort="${c.key}" title="${c.label}">${c.label}${indicator}${!hidden ? `<span class="col-hide-btn" data-hide-col="${c.key}" title="列を非表示">×</span>` : ""}</th>`;
     }
-    return `<th${cls ? ` class="${cls}"` : ""} data-col-toggle="${c.key}" title="${c.label || c.key}">${c.label}</th>`;
+    return `<th${cls ? ` class="${cls}"` : ""} data-col-toggle="${c.key}" title="${c.label || c.key}">${c.label}${!hidden ? `<span class="col-hide-btn" title="列を非表示">×</span>` : ""}</th>`;
   }).join("")}</tr></thead>`;
 
   grid.innerHTML = `
@@ -471,6 +468,17 @@ function renderTable(data, grid) {
       e.stopPropagation();
       const key = th.dataset.colSort;
       if (!key) return;
+      if (hiddenColumns.has(key)) {
+        hiddenColumns.delete(key);
+        persistAndRerender("hiddenColumns", [...hiddenColumns]);
+        return;
+      }
+      if (e.shiftKey || e.target.classList.contains("col-hide-btn")) {
+        e.stopPropagation();
+        hiddenColumns.add(key);
+        persistAndRerender("hiddenColumns", [...hiddenColumns]);
+        return;
+      }
       if (sortCol === key) {
         if (sortDir === "asc") {
           sortDir = "desc";
@@ -740,3 +748,29 @@ document.getElementById("demo-toggle").addEventListener("click", function () {
   if (lastData) render(lastData);
 });
 
+
+// Theme toggle
+(function () {
+  const html = document.documentElement;
+  const btn = document.getElementById("theme-toggle");
+  const saved = localStorage.getItem("byakugan-theme");
+  if (saved) html.dataset.theme = saved;
+
+  function effectiveTheme() {
+    return html.dataset.theme ||
+      (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+  }
+
+  function syncIcon() {
+    btn.textContent = effectiveTheme() === "dark" ? "◑" : "◐";
+  }
+
+  btn.addEventListener("click", function () {
+    const next = effectiveTheme() === "dark" ? "light" : "dark";
+    html.dataset.theme = next;
+    localStorage.setItem("byakugan-theme", next);
+    syncIcon();
+  });
+
+  syncIcon();
+})();

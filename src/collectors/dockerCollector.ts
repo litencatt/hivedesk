@@ -29,12 +29,25 @@ export async function findComposeFile(dir: string, depth: number): Promise<strin
   return null;
 }
 
-export async function collectDockerContainers(projectDir: string): Promise<DockerContainer[]> {
-  if (!projectDir) return [];
+async function getWorktreeDirs(projectDir: string): Promise<string[]> {
+  try {
+    const { stdout } = await execFileAsync(
+      "git", ["-C", projectDir, "worktree", "list", "--porcelain"],
+      { timeout: 2000 }
+    );
+    const dirs: string[] = [];
+    for (const line of stdout.split("\n")) {
+      if (line.startsWith("worktree ")) {
+        dirs.push(line.slice("worktree ".length).trim());
+      }
+    }
+    return dirs.length > 0 ? dirs : [projectDir];
+  } catch {
+    return [projectDir];
+  }
+}
 
-  const composeFile = await findComposeFile(projectDir, 2);
-  if (!composeFile) return [];
-
+async function collectContainersFromFile(composeFile: string): Promise<DockerContainer[]> {
   try {
     const { stdout } = await execFileAsync(
       "docker", ["compose", "-f", composeFile, "ps", "--format", "json"],
@@ -57,4 +70,32 @@ export async function collectDockerContainers(projectDir: string): Promise<Docke
   } catch {
     return [];
   }
+}
+
+export async function collectDockerContainers(projectDir: string): Promise<DockerContainer[]> {
+  if (!projectDir) return [];
+
+  // Search all git worktrees so containers started from a different worktree are found
+  const worktreeDirs = await getWorktreeDirs(projectDir);
+
+  const results = await Promise.all(
+    worktreeDirs.map(async (dir) => {
+      const composeFile = await findComposeFile(dir, 2);
+      if (!composeFile) return [];
+      return collectContainersFromFile(composeFile);
+    })
+  );
+
+  // Deduplicate by container name
+  const seen = new Set<string>();
+  const containers: DockerContainer[] = [];
+  for (const batch of results) {
+    for (const c of batch) {
+      if (!seen.has(c.name)) {
+        seen.add(c.name);
+        containers.push(c);
+      }
+    }
+  }
+  return containers;
 }

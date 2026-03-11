@@ -27,10 +27,10 @@
     --bg: #f0f4f8;
     --surface: #ffffff;
     --surface2: #f6f9fc;
-    --border: #c8d8e8;
-    --border2: #b0c4d8;
-    --text: #1a2840;
-    --text-muted: #7090b0;
+    --border: #a8c0d8;
+    --border2: #7898b8;
+    --text: #0d1d30;
+    --text-muted: #4a6888;
     --green: #00a855;
     --green-dim: rgba(0, 168, 85, 0.08);
     --accent: #0088cc;
@@ -43,6 +43,48 @@
     --glow-green: none;
     --glow-accent: none;
   }
+}
+
+html[data-theme="light"] {
+  --bg: #f0f4f8;
+  --surface: #ffffff;
+  --surface2: #f6f9fc;
+  --border: #a8c0d8;
+  --border2: #7898b8;
+  --text: #0d1d30;
+  --text-muted: #4a6888;
+  --green: #00a855;
+  --green-dim: rgba(0, 168, 85, 0.08);
+  --accent: #0088cc;
+  --accent-dim: rgba(0, 136, 204, 0.08);
+  --amber: #d47000;
+  --red: #e02030;
+  --purple: #7c4dff;
+  --working-border: #00a855;
+  --idle-border: #d8e4ee;
+  --glow-green: none;
+  --glow-accent: none;
+}
+
+html[data-theme="dark"] {
+  --bg: #060a0f;
+  --surface: #0a1018;
+  --surface2: #0e1520;
+  --border: #162030;
+  --border2: #1e2d40;
+  --text: #b8cce0;
+  --text-muted: #3d5870;
+  --green: #00e87a;
+  --green-dim: rgba(0, 232, 122, 0.07);
+  --accent: #00c8ff;
+  --accent-dim: rgba(0, 200, 255, 0.08);
+  --amber: #ffaa40;
+  --red: #ff4d5e;
+  --purple: #b388ff;
+  --working-border: #00e87a;
+  --idle-border: #162030;
+  --glow-green: 0 0 12px rgba(0, 232, 122, 0.4);
+  --glow-accent: 0 0 12px rgba(0, 200, 255, 0.4);
 }
 
 * {
@@ -165,6 +207,28 @@ h1 {
   font-size: 10px;
   color: var(--text-muted);
   opacity: 0.4;
+}
+
+.theme-toggle {
+  background: none;
+  border: 1px solid var(--border2);
+  color: var(--text-muted);
+  font-size: 14px;
+  width: 26px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.theme-toggle:hover {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .demo-toggle {
@@ -311,7 +375,7 @@ main {
 }
 
 .pr-link {
-  display: inline-block;
+  display: block;
   font-size: 11px;
   font-weight: 600;
   color: var(--green);
@@ -322,6 +386,9 @@ main {
   border-radius: 2px;
   margin-bottom: 4px;
   transition: background 0.1s, box-shadow 0.1s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pr-link:hover {
@@ -446,6 +513,11 @@ main {
 /* ── Table view ── */
 .process-grid.list {
   display: block;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  overflow: clip;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.12);
 }
 
 .process-table {
@@ -453,6 +525,7 @@ main {
   border-collapse: collapse;
   font-size: 12px;
   font-family: var(--font);
+  table-layout: fixed;
 }
 
 .process-table .pr-link {
@@ -539,9 +612,19 @@ main {
 }
 
 /* ── Project column ── */
+.tbl-project,
+td.tbl-branch,
+td.tbl-pr {
+  overflow: hidden;
+  max-width: 0;
+}
+
 .tbl-project {
   font-weight: 600;
   font-family: var(--font);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tbl-project-dir {
@@ -550,6 +633,9 @@ main {
   color: var(--text-muted);
   font-weight: 400;
   margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tbl-branch-name {
@@ -559,6 +645,10 @@ main {
   font-family: var(--font);
   font-size: 12px;
   color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .tbl-model {
@@ -584,7 +674,11 @@ main {
   text-align: right;
   padding-left: 4px;
   padding-right: 4px;
-  width: 1px;
+}
+
+td.tbl-status {
+  white-space: nowrap;
+  text-align: center;
 }
 
 .tbl-icons {
@@ -592,6 +686,12 @@ main {
   align-items: center;
   vertical-align: middle;
   gap: 4px;
+}
+
+td.tbl-actions {
+  width: 28px;
+  text-align: center;
+  padding: 0 4px;
 }
 
 /* ── Action buttons ── */
@@ -701,6 +801,7 @@ main {
   white-space: nowrap;
   text-decoration: underline;
   text-underline-offset: 2px;
+  padding: 0 1px;
 }
 
 .process-table thead th[data-col-sort] {
@@ -710,6 +811,26 @@ main {
 
 .process-table thead th[data-col-sort]:hover {
   color: var(--accent);
+}
+
+.col-hide-btn {
+  display: none;
+  margin-left: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  opacity: 0.5;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.process-table thead th:hover .col-hide-btn {
+  display: inline;
+}
+
+.col-hide-btn:hover {
+  opacity: 1;
+  color: var(--red);
 }
 
 .process-table thead th[data-col-sort].col-toggled {
