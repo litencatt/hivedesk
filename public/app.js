@@ -18,13 +18,13 @@ const COL_DEFS = [
   { key: "project",    fixed: null,   label: "Project",    stat: false, sortable: true  },
   { key: "branch",     fixed: null,   label: "Branch",     stat: false, sortable: true  },
   { key: "pr",         fixed: null,   label: "PR",         stat: false, sortable: false },
-  { key: "containers", fixed: null,    label: "Containers", stat: false, sortable: false },
+  { key: "containers", fixed: "90px",  label: "Containers", stat: false, sortable: false },
   { key: "status",     fixed: "110px", label: "Status",     stat: false, sortable: false },
-  { key: "cpu",        fixed: "70px",  label: "CPU",        stat: true,  sortable: true  },
-  { key: "mem",        fixed: "70px",  label: "MEM",        stat: true,  sortable: true  },
-  { key: "uptime",     fixed: "90px",  label: "Uptime",     stat: true,  sortable: true  },
-  { key: "icons",      fixed: null,   label: "",           stat: false, sortable: false },
-  { key: "actions",   fixed: "28px", label: "",           stat: false, sortable: false },
+  { key: "cpu",        fixed: "64px",  label: "CPU",        stat: true,  sortable: true  },
+  { key: "mem",        fixed: "64px",  label: "MEM",        stat: true,  sortable: true  },
+  { key: "uptime",     fixed: "82px",  label: "Uptime",     stat: true,  sortable: true  },
+  { key: "icons",      fixed: "52px",  label: "",           stat: false, sortable: false },
+  { key: "actions",   fixed: "32px",  label: "",           stat: false, sortable: false },
 ];
 
 const HIDDEN_COL_W = "14px";
