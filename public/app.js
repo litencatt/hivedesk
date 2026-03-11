@@ -18,7 +18,7 @@ const COL_DEFS = [
   { key: "project",    fixed: null,   label: "Project",    stat: false, sortable: true  },
   { key: "branch",     fixed: null,   label: "Branch",     stat: false, sortable: true  },
   { key: "pr",         fixed: null,   label: "PR",         stat: false, sortable: false },
-  { key: "containers", fixed: "90px",  label: "Containers", stat: false, sortable: false },
+  { key: "containers", fixed: "70px",  label: "Containers", stat: false, sortable: false },
   { key: "status",     fixed: "110px", label: "Status",     stat: false, sortable: false },
   { key: "cpu",        fixed: "64px",  label: "CPU",        stat: true,  sortable: true  },
   { key: "mem",        fixed: "64px",  label: "MEM",        stat: true,  sortable: true  },
@@ -277,14 +277,14 @@ function statusEmoji(proc) {
 function tableRowHtml(proc, extraProcs = []) {
   const running = (proc.containers ?? []).filter(c => c.state === "running");
   const stopped = (proc.containers ?? []).filter(c => c.state !== "running");
+  const containerTooltip = proc.containers && proc.containers.length > 0
+    ? [...running.map(c => `▶ ${c.service}`), ...stopped.map(c => `■ ${c.service}`)].join("\n")
+    : "";
   const containersSummary = proc.containers && proc.containers.length > 0 && running.length > 0
     ? `<span class="containers-summary">🐳 ${running.length}</span>`
     : `<span class="containers-summary"></span>`;
   const containersHtml = proc.containers && proc.containers.length > 0
-    ? `${containersSummary}<span class="containers-full">🐳 <span class="containers-count">${running.length}/${proc.containers.length}</span> ${[
-        ...running.map(c => `<span class="container-running">${escapeHtml(c.service)}</span>`),
-        ...stopped.map(c => `<span class="container-stopped">${escapeHtml(c.service)}</span>`),
-      ].join(" ")}</span>`
+    ? `${containersSummary}<span class="containers-full" title="${escapeHtml(containerTooltip)}">🐳 <span class="containers-count">${running.length}/${proc.containers.length}</span></span>`
     : "";
   const rowKey = escapeHtml(proc.projectDir ?? String(proc.pid));
   return `
