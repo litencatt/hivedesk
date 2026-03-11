@@ -7,9 +7,21 @@ import { DashboardData } from "./types.js";
 
 const app = express();
 const PORT = process.env.PORT ?? 3000;
+const DEBUG = process.env.BYAKUGAN_DEBUG === "true";
+
+function dbg(...args: unknown[]) {
+  if (DEBUG) console.log(`[${new Date().toISOString()}]`, ...args);
+}
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "..", "public")));
+
+if (DEBUG) {
+  app.use((req, _res, next) => {
+    dbg(`→ ${req.method} ${req.path}`);
+    next();
+  });
+}
 
 // BYAKUGAN_POLL_INTERVAL でSSE更新間隔とプロセスデータキャッシュTTLを変更できる（デフォルト: 2秒）
 const POLL_INTERVAL_MS = parseInt(process.env.BYAKUGAN_POLL_INTERVAL ?? "2") * 1000;
@@ -20,9 +32,12 @@ const CACHE_TTL_MS = POLL_INTERVAL_MS;
 async function getProcessData(): Promise<DashboardData> {
   const now = Date.now();
   if (cache && now - cache.fetchedAt < CACHE_TTL_MS) {
+    dbg("cache hit");
     return cache.data;
   }
+  const t0 = Date.now();
   const data = await collectProcesses();
+  dbg(`collectProcesses: ${Date.now() - t0}ms, procs=${data.processes.length}, editors=${data.editorWindows.length}`);
   cache = { data, fetchedAt: now };
   return data;
 }
@@ -97,6 +112,7 @@ app.get("/events", (req: Request, res: Response) => {
   res.flushHeaders();
 
   sseClients.add(res);
+  dbg(`SSE client connected (total: ${sseClients.size})`);
 
   const sendData = async () => {
     try {
@@ -113,6 +129,7 @@ app.get("/events", (req: Request, res: Response) => {
   req.on("close", () => {
     clearInterval(interval);
     sseClients.delete(res);
+    dbg(`SSE client disconnected (total: ${sseClients.size})`);
   });
 });
 
