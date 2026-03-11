@@ -665,6 +665,49 @@ function renderUsage(usage) {
   usageEl.innerHTML = parts.join("");
 }
 
+const _faviconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><text y="28" font-size="28">👁️</text></svg>`;
+
+function updateFavicon(data) {
+  const processes = data?.processes ?? [];
+  const workingCount = processes.filter(p => p.status === "working").length;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = 32;
+  canvas.height = 32;
+  const ctx = canvas.getContext("2d");
+
+  const blob = new Blob([_faviconSvg], { type: "image/svg+xml" });
+  const url = URL.createObjectURL(blob);
+  const img = new Image();
+  img.onload = () => {
+    ctx.drawImage(img, 0, 0, 32, 32);
+    URL.revokeObjectURL(url);
+
+    if (workingCount > 0) {
+      const bx = 25, by = 7, r = 7;
+      ctx.beginPath();
+      ctx.arc(bx, by, r, 0, Math.PI * 2);
+      ctx.fillStyle = "#22c55e";
+      ctx.fill();
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      if (workingCount > 1) {
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 9px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(String(workingCount), bx, by);
+      }
+    }
+
+    const link = document.querySelector('link[rel="icon"][type="image/svg+xml"]');
+    if (link) link.href = canvas.toDataURL("image/png");
+  };
+  img.src = url;
+}
+
 function render(rawData) {
   const data = demoMode ? generateDemoData(rawData?.collectedAt) : rawData;
 
@@ -673,6 +716,7 @@ function render(rawData) {
   document.getElementById("last-updated").textContent =
     `Updated ${new Date(data.collectedAt).toLocaleTimeString()}`;
   renderUsage(data.usage);
+  updateFavicon(data);
 
   const grid = document.getElementById("process-grid");
 
