@@ -333,7 +333,7 @@ function renderTable(data, grid) {
   const editorVisible = (data.editorWindows ?? [])
     .filter(w => !claudeDirs.has(w.projectDir) && !hiddenRows.has(w.projectDir));
 
-  // 全行を統合してスター優先→ソート（rowOrderはClaudeプロセス行のタイブレーカーに使用）
+  // 全行を統合してスター優先→ソート（rowOrderは全行のD&D順序に使用）
   const orderMap = rowOrder && rowOrder.length > 0
     ? new Map(rowOrder.map((k, i) => [k, i]))
     : null;
@@ -355,7 +355,7 @@ function renderTable(data, grid) {
       return {
         starred: starredDirs.has(w.projectDir),
         name: project,
-        order: Infinity,
+        order: orderMap ? (orderMap.get(w.projectDir) ?? Infinity) : Infinity,
         isEditor: true,
         html: editorRowHtml(w),
         sortValues: { project, branch: w.gitBranch ?? null, cpu: null, mem: null, uptime: null },
