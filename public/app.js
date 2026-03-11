@@ -327,6 +327,47 @@ function renderTable(data, grid) {
       </tr>
     `).join("");
 
+  // Recently Opened Projects: rows dismissed via × button
+  const dismissedKeys = new Set();
+  const dismissed = [];
+  for (const { primary } of mergedRows) {
+    const key = primary.projectDir ?? String(primary.pid);
+    if (hiddenRows.has(key) && !dismissedKeys.has(key)) {
+      dismissedKeys.add(key);
+      dismissed.push({ key, projectDir: primary.projectDir, gitCommonDir: primary.gitCommonDir, gitBranch: primary.gitBranch, prUrl: primary.prUrl, prTitle: primary.prTitle, app: primary.editorApp });
+    }
+  }
+  for (const w of (data.editorWindows ?? [])) {
+    if (hiddenRows.has(w.projectDir) && !dismissedKeys.has(w.projectDir)) {
+      dismissedKeys.add(w.projectDir);
+      dismissed.push({ key: w.projectDir, projectDir: w.projectDir, gitCommonDir: w.gitCommonDir, gitBranch: w.gitBranch, prUrl: w.prUrl, prTitle: w.prTitle, app: w.app });
+    }
+  }
+
+  const recentlyOpenedRows = dismissed.length > 0
+    ? `<tr class="tbl-group-row tbl-editor-group tbl-editor-toggle" tabindex="0" role="button">
+        <td colspan="10" class="tbl-group-cell">
+          <span class="tbl-collapse-icon">${editorSectionCollapsed ? "▶" : "▼"}</span> Recently Opened Projects
+        </td>
+       </tr>` +
+      (editorSectionCollapsed ? "" : dismissed
+        .sort((a, b) => orgRepo(a.projectDir, a.gitCommonDir).localeCompare(orgRepo(b.projectDir, b.gitCommonDir)))
+        .map(d => `
+          <tr class="tbl-editor-row" data-dir="${escapeHtml(d.projectDir)}" data-app="${d.app ? escapeHtml(d.app) : ""}" tabindex="0" role="button">
+            <td></td>
+            <td class="tbl-project"><div>${escapeHtml(orgRepo(d.projectDir, d.gitCommonDir))}</div><div class="tbl-project-dir">${escapeHtml(shortenPath(d.projectDir))}</div></td>
+            <td class="tbl-branch">${d.gitBranch ? `<span class="tbl-branch-name"><img src="git-branch.svg" class="git-branch-icon" alt="branch"> ${escapeHtml(d.gitBranch)}</span>` : ""}</td>
+            <td class="tbl-pr">${d.prUrl ? `<a class="pr-link" href="${escapeHtml(d.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${d.prTitle ? `#${escapeHtml(d.prUrl.split("/").pop() ?? "")}: ${escapeHtml(d.prTitle)}` : `#${escapeHtml(d.prUrl.split("/").pop() ?? "")}`}</a>` : ""}</td>
+            <td class="tbl-containers"></td>
+            <td class="tbl-status"></td>
+            <td class="tbl-stat"></td>
+            <td class="tbl-stat"></td>
+            <td class="tbl-stat"></td>
+            <td class="tbl-icons">${d.app ? `<img src="${escapeHtml(d.app)}.svg" class="editor-icon" alt="${escapeHtml(d.app)}">` : ""}<button class="row-restore-btn" data-restore-key="${escapeHtml(d.key)}" title="メインに戻す">↩</button></td>
+          </tr>
+        `).join(""))
+    : "";
+
   const colgroupHtml = `<colgroup>${COL_DEFS.map(c => {
     const hidden = hiddenColumns.has(c.key);
     const w = hidden ? null : c.fixed;
@@ -343,7 +384,7 @@ function renderTable(data, grid) {
     <table class="process-table">
       ${colgroupHtml}
       ${theadHtml}
-      <tbody>${tableRows}${editorRows}</tbody>
+      <tbody>${tableRows}${editorRows}${recentlyOpenedRows}</tbody>
     </table>
   `;
 
@@ -401,6 +442,31 @@ function renderTable(data, grid) {
       }
     });
   });
+
+  grid.querySelectorAll(".row-restore-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const key = btn.dataset.restoreKey;
+      if (key) {
+        hiddenRows.delete(key);
+        localStorage.setItem("hiddenRows", JSON.stringify([...hiddenRows]));
+        if (lastData) render(lastData);
+      }
+    });
+  });
+
+  const toggleRow = grid.querySelector(".tbl-editor-toggle");
+  if (toggleRow) {
+    const toggle = () => {
+      editorSectionCollapsed = !editorSectionCollapsed;
+      localStorage.setItem("editorSectionCollapsed", String(editorSectionCollapsed));
+      if (lastData) render(lastData);
+    };
+    toggleRow.addEventListener("click", toggle);
+    toggleRow.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") toggle();
+    });
+  }
 
   setupDragAndDrop(grid);
   applySelectedClass(grid);
@@ -500,7 +566,6 @@ function render(rawData) {
   document.getElementById("stat-idle").textContent = `${data.totalIdle} idle`;
   document.getElementById("last-updated").textContent =
     `Updated ${new Date(data.collectedAt).toLocaleTimeString()}`;
-  document.getElementById("show-hidden-btn").style.display = hiddenRows.size > 0 ? "" : "none";
   renderUsage(data.usage);
 
   const grid = document.getElementById("process-grid");
@@ -569,8 +634,3 @@ document.getElementById("demo-toggle").addEventListener("click", function () {
   if (lastData) render(lastData);
 });
 
-document.getElementById("show-hidden-btn").addEventListener("click", function () {
-  hiddenRows.clear();
-  localStorage.removeItem("hiddenRows");
-  if (lastData) render(lastData);
-});
