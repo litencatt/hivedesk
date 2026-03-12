@@ -217,6 +217,55 @@ describe("getCachedOAuthUsage", () => {
     expect(https.request).toHaveBeenCalledTimes(2);
   });
 
+  it("concurrent calls issue only one HTTP request (in-flight deduplication)", async () => {
+    mockToken();
+    mockHttpsRequest(200, SUCCESS_BODY);
+
+    // Fire two concurrent calls without awaiting in between
+    const [r1, r2] = await Promise.all([getCachedOAuthUsage(), getCachedOAuthUsage()]);
+
+    // Both callers should receive the same successful response
+    expect(r1?.ok).toBe(true);
+    expect(r2?.ok).toBe(true);
+
+    // Only one HTTP request should have been made
+    expect(https.request).toHaveBeenCalledTimes(1);
+  });
+
+  it("concurrent error calls issue only one HTTP request and all callers receive the error", async () => {
+    mockToken();
+    mockHttpsRequest(429, "Too Many Requests");
+
+    const [r1, r2, r3] = await Promise.all([
+      getCachedOAuthUsage(),
+      getCachedOAuthUsage(),
+      getCachedOAuthUsage(),
+    ]);
+
+    expect(r1).toEqual({ ok: false, error: "ratelimit", retryAfterMs: undefined });
+    expect(r2).toEqual({ ok: false, error: "ratelimit", retryAfterMs: undefined });
+    expect(r3).toEqual({ ok: false, error: "ratelimit", retryAfterMs: undefined });
+
+    // Only one HTTP request despite three concurrent callers
+    expect(https.request).toHaveBeenCalledTimes(1);
+  });
+
+  it("after in-flight promise resolves, a new call past TTL issues a fresh request", async () => {
+    mockToken();
+    mockHttpsRequest(200, SUCCESS_BODY);
+
+    await Promise.all([getCachedOAuthUsage(), getCachedOAuthUsage()]);
+    expect(https.request).toHaveBeenCalledTimes(1);
+
+    // Advance past TTL (300s)
+    vi.advanceTimersByTime(301_000);
+    mockHttpsRequest(200, SUCCESS_BODY);
+    await getCachedOAuthUsage();
+
+    // A second API call should occur after TTL expires
+    expect(https.request).toHaveBeenCalledTimes(2);
+  });
+
   it("restores from disk cache when in-memory cache is missing (tsx watch restart)", async () => {
     const diskCache = {
       result: {
