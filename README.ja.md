@@ -1,4 +1,4 @@
-<div align="center"><img src="docs/byakugan.svg" alt="byakugan" width="120"></div>
+<div align="center"><img src="public/byakugan.svg" alt="byakugan" width="120"></div>
 
 # byakugan
 
