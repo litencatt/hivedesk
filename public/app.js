@@ -759,7 +759,14 @@ function focusWindow(pid, cardEl) {
 
 document.getElementById("process-grid").classList.add("list");
 
-fetch("/api/config").then(r => r.json()).then(cfg => { homeDir = cfg.homeDir ?? null; }).catch(() => {}).finally(() => connect());
+fetch("/api/config").then(r => r.json()).then(cfg => {
+  homeDir = cfg.homeDir ?? null;
+  if (cfg.nestedSession) {
+    const banner = document.getElementById("nested-session-banner");
+    banner.textContent = "⚠ Running inside a Claude Code session — new claude processes will fail to start (nested sessions are not supported)";
+    banner.style.display = "block";
+  }
+}).catch(() => {}).finally(() => connect());
 updateHiddenColStyles();
 
 document.getElementById("demo-toggle").addEventListener("click", function () {
