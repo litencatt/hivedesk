@@ -4,7 +4,7 @@ import { execFileAsync } from "../utils/execUtils.js";
 
 type GitInfo = { gitBranch: string | null; gitCommonDir: string | null; prUrl: string | null; prTitle: string | null };
 
-type GitCache = {
+type BranchCache = {
   data: GitInfo;
   lastBranch: string | null;
   lastFetchHeadMtime: number | null;
@@ -12,13 +12,53 @@ type GitCache = {
   cachedAt: number;
 };
 
-const gitCache = new Map<string, GitCache>();
+// Per-repo PR cache: gitCommonDir → all open PRs keyed by headRefName
+type RepoPrCache = {
+  prs: Map<string, { url: string; title: string }>;
+  fetchHeadMtime: number | null;
+  cachedAt: number;
+};
+
+const branchCache = new Map<string, BranchCache>();
+const repoPrCache = new Map<string, RepoPrCache>();
 
 async function getFileMtime(filePath: string): Promise<number | null> {
   try {
     const s = await stat(filePath);
     return s.mtimeMs;
   } catch { return null; }
+}
+
+// Fetch all open PRs for a repo in one gh call, keyed by branch name
+async function fetchRepoPrs(repoDir: string): Promise<Map<string, { url: string; title: string }>> {
+  const map = new Map<string, { url: string; title: string }>();
+  try {
+    const { stdout } = await execFileAsync(
+      "gh", ["pr", "list", "--state", "open", "--limit", "100", "--json", "url,title,headRefName"],
+      { cwd: repoDir, timeout: 8000 }
+    );
+    const prs = JSON.parse(stdout) as Array<{ url: string; title: string; headRefName: string }>;
+    for (const pr of prs) {
+      if (pr.headRefName) map.set(pr.headRefName, { url: pr.url, title: pr.title });
+    }
+  } catch { /* gh not available or no PRs */ }
+  return map;
+}
+
+async function getRepoPrCache(gitCommonDir: string, fetchHeadMtime: number | null): Promise<RepoPrCache> {
+  const cached = repoPrCache.get(gitCommonDir);
+  const fetchHeadChanged = fetchHeadMtime !== null && fetchHeadMtime !== cached?.fetchHeadMtime;
+  // Retry every 5 min as fallback for GitHub-only events (PR created without local git op)
+  const cacheExpired = cached && (Date.now() - cached.cachedAt) > 180_000;
+
+  if (cached && !fetchHeadChanged && !cacheExpired) {
+    return cached;
+  }
+
+  const prs = await fetchRepoPrs(gitCommonDir);
+  const entry: RepoPrCache = { prs, fetchHeadMtime, cachedAt: Date.now() };
+  repoPrCache.set(gitCommonDir, entry);
+  return entry;
 }
 
 export async function collectGitInfo(projectDir: string): Promise<GitInfo> {
@@ -38,19 +78,16 @@ export async function collectGitInfo(projectDir: string): Promise<GitInfo> {
       : path.resolve(projectDir, rawCommonDir);
   } catch { /* not a git repo */ }
 
-  const cached = gitCache.get(projectDir);
+  const cached = branchCache.get(projectDir);
 
-  // Fetch PR only when: no cache, branch changed, FETCH_HEAD updated, remote ref updated, or cache expired
   const [fetchHeadMtime, remoteRefMtime] = await Promise.all([
     gitCommonDir ? getFileMtime(path.join(gitCommonDir, "FETCH_HEAD")) : Promise.resolve(null),
-    // refs/remotes/origin/<branch> is updated on git push
     gitCommonDir && gitBranch ? getFileMtime(path.join(gitCommonDir, "refs", "remotes", "origin", gitBranch)) : Promise.resolve(null),
   ]);
   const branchChanged = cached?.lastBranch !== gitBranch;
   const fetchHeadChanged = fetchHeadMtime !== null && fetchHeadMtime !== cached?.lastFetchHeadMtime;
   const remoteRefChanged = remoteRefMtime !== null && remoteRefMtime !== cached?.lastRemoteRefMtime;
-  // If prUrl is null, retry every 5 min as fallback for GitHub-only events (PR created without local git op)
-  const cacheExpired = cached && !cached.data.prUrl && (Date.now() - cached.cachedAt) > 300_000;
+  const cacheExpired = cached && !cached.data.prUrl && (Date.now() - cached.cachedAt) > 180_000;
 
   if (cached && !branchChanged && !fetchHeadChanged && !remoteRefChanged && !cacheExpired) {
     return { ...cached.data, gitBranch, gitCommonDir };
@@ -58,19 +95,14 @@ export async function collectGitInfo(projectDir: string): Promise<GitInfo> {
 
   let prUrl: string | null = null;
   let prTitle: string | null = null;
-  if (gitBranch && gitBranch !== "HEAD" && gitBranch !== "main" && gitBranch !== "master") {
-    try {
-      const { stdout: prOut } = await execFileAsync(
-        "gh", ["pr", "view", "--json", "url,title", "-q", "[.url,.title] | join(\"\\t\")"],
-        { cwd: projectDir, timeout: 5000 }
-      );
-      const parts = prOut.trim().split("\t");
-      prUrl = parts[0] || null;
-      prTitle = parts[1] || null;
-    } catch { /* no PR or gh not available */ }
+  if (gitCommonDir && gitBranch && gitBranch !== "HEAD" && gitBranch !== "main" && gitBranch !== "master") {
+    const prCacheEntry = await getRepoPrCache(gitCommonDir, fetchHeadMtime);
+    const pr = prCacheEntry.prs.get(gitBranch);
+    prUrl = pr?.url ?? null;
+    prTitle = pr?.title ?? null;
   }
 
   const data = { gitBranch, gitCommonDir, prUrl, prTitle };
-  gitCache.set(projectDir, { data, lastBranch: gitBranch, lastFetchHeadMtime: fetchHeadMtime, lastRemoteRefMtime: remoteRefMtime, cachedAt: Date.now() });
+  branchCache.set(projectDir, { data, lastBranch: gitBranch, lastFetchHeadMtime: fetchHeadMtime, lastRemoteRefMtime: remoteRefMtime, cachedAt: Date.now() });
   return data;
 }
