@@ -60,10 +60,11 @@
 
 ## 前提条件
 
-- **macOS**（`ps`、`lsof`、`osascript` を使用）
+- **macOS**（`ps`、`lsof` を使用）
 - **Node.js 18+**
 - **GitHub CLI** (`gh`) — PR リンク取得用
 - **Git** — ブランチ情報取得用
+- **`code` CLI** *（オプション）* — VSCode でワークツリーを開く機能用（VSCode の *Shell Command: Install 'code' command in PATH* でインストール）
 
 ## インストール
 
@@ -102,7 +103,8 @@ npm start
 - **フロントエンド**: Vanilla JavaScript（フレームワークなし）
 - **通信**: Server-Sent Events（リアルタイムプッシュ）
 - **プロセス情報取得**: `ps`、`lsof`、`git`、`gh` CLI
-- **ウィンドウ制御**: macOS `osascript` + `open -a`
+- **ウィンドウフォーカス**: Swift バイナリ（`focus-window`）+ `osascript` / `open -a` フォールバック
+- **ワークツリーを開く**: `code` CLI
 
 ## 開発スクリプト
 

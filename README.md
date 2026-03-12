@@ -59,10 +59,11 @@ Each Claude Code process appears as a row with:
 
 ## Prerequisites
 
-- **macOS** (uses `ps`, `lsof`, `osascript`)
+- **macOS** (uses `ps`, `lsof`)
 - **Node.js 18+**
 - **GitHub CLI** (`gh`) — for PR link detection
 - **Git** — for branch info
+- **`code` CLI** *(optional)* — for "Open in VSCode" worktree feature (install via VSCode: *Shell Command: Install 'code' command in PATH*)
 
 ## Installation
 
@@ -101,7 +102,8 @@ npm start
 - **Frontend**: Vanilla JavaScript (SSE client, no framework)
 - **Communication**: Server-Sent Events (real-time push)
 - **Process info**: `ps`, `lsof`, `git`, `gh` CLI
-- **Window control**: macOS `osascript` + `open -a`
+- **Window focus**: Swift binary (`focus-window`) with `osascript` + `open -a` fallback
+- **Worktree open**: `code` CLI
 
 ## Scripts
 
