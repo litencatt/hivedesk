@@ -96,3 +96,34 @@ describe("parseStorageFolders", () => {
     expect(parseStorageFolders({ backupWorkspaces: {} }, "vscode")).toHaveLength(0);
   });
 });
+
+describe("BYAKUGAN_PROCESS_NAMES parsing", () => {
+  // Tests the parsing logic used by MONITORED_PROCESS_NAMES in processCollector.ts
+  const parse = (s: string) => new Set(s.split(",").map((n) => n.trim()).filter(Boolean));
+
+  it("single value matches claude by default", () => {
+    const names = parse("claude");
+    expect(names.has("claude")).toBe(true);
+    expect(names.size).toBe(1);
+  });
+
+  it("comma-separated values match multiple process names", () => {
+    const names = parse("claude,codex");
+    expect(names.has("claude")).toBe(true);
+    expect(names.has("codex")).toBe(true);
+    expect(names.size).toBe(2);
+  });
+
+  it("trims whitespace around commas", () => {
+    const names = parse("claude, codex , gemini");
+    expect(names.has("codex")).toBe(true);
+    expect(names.has("gemini")).toBe(true);
+  });
+
+  it("filters empty entries from trailing or double commas", () => {
+    const names = parse("claude,,codex,");
+    expect(names.has("claude")).toBe(true);
+    expect(names.has("codex")).toBe(true);
+    expect(names.size).toBe(2);
+  });
+});

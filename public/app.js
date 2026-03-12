@@ -1,5 +1,6 @@
 let es = null;
 let demoMode = false;
+let homeDir = null;
 let lastData = null;
 let lastDataJson = null;
 let starredPids = new Set(JSON.parse(localStorage.getItem("starredPids") || "[]"));
@@ -205,12 +206,12 @@ function orgRepo(projectDir, gitCommonDir) {
 
 function shortenPath(p) {
   if (!p) return "";
-  const home = "/Users/";
-  if (p.startsWith(home)) {
-    const rest = p.slice(home.length);
-    const slash = rest.indexOf("/");
-    if (slash !== -1) return "~/" + rest.slice(slash + 1);
+  if (homeDir && p.startsWith(homeDir + "/")) {
+    return "~/" + p.slice(homeDir.length + 1);
   }
+  // Fallback: strip /Users/<name>/ prefix
+  const m = p.match(/^\/Users\/[^/]+\/(.+)$/);
+  if (m) return "~/" + m[1];
   return p;
 }
 
@@ -758,7 +759,7 @@ function focusWindow(pid, cardEl) {
 
 document.getElementById("process-grid").classList.add("list");
 
-connect();
+fetch("/api/config").then(r => r.json()).then(cfg => { homeDir = cfg.homeDir ?? null; }).catch(() => {}).finally(() => connect());
 updateHiddenColStyles();
 
 document.getElementById("demo-toggle").addEventListener("click", function () {

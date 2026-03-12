@@ -6,10 +6,16 @@ import https from "https";
 import { execSync } from "child_process";
 import { encodeProjectDir } from "../utils/processUtils.js";
 
+// BYAKUGAN_PROJECTS_DIR でClaudeプロジェクトディレクトリを変更できる（デフォルト: ~/.claude/projects）
+const CLAUDE_PROJECTS_DIR = process.env.BYAKUGAN_PROJECTS_DIR ?? path.join(os.homedir(), ".claude", "projects");
+
+// BYAKUGAN_CREDENTIALS_PATH でOAuth認証ファイルのパスを変更できる（デフォルト: ~/.claude/.credentials.json）
+const CLAUDE_CREDENTIALS_PATH = process.env.BYAKUGAN_CREDENTIALS_PATH ?? path.join(os.homedir(), ".claude", ".credentials.json");
+
 export async function collectSessionData(projectDir: string): Promise<{ currentTask: string | null; modelName: string | null; inputTokens: number; outputTokens: number; claudeStatus: "thinking" | "tool_use" | "executing" | "waiting" | null }> {
   try {
     const encoded = encodeProjectDir(projectDir);
-    const claudeProjectsDir = path.join(os.homedir(), ".claude", "projects", encoded);
+    const claudeProjectsDir = path.join(CLAUDE_PROJECTS_DIR, encoded);
 
     const files = await readdir(claudeProjectsDir);
     const jsonlFiles = files.filter(f => f.endsWith(".jsonl"));
@@ -130,7 +136,7 @@ function getOAuthToken(): string | null {
   }
   // File fallback
   try {
-    const content = readFileSync(path.join(os.homedir(), ".claude/.credentials.json"), "utf-8");
+    const content = readFileSync(CLAUDE_CREDENTIALS_PATH, "utf-8");
     const parsed = JSON.parse(content);
     const creds = parsed.claudeAiOauth ?? parsed;
     if (creds.accessToken && (!creds.expiresAt || creds.expiresAt > Date.now())) {
@@ -173,7 +179,7 @@ const CACHE_TTL_AUTH_ERROR_MS = 5 * 60 * 1000; // auth errorは5分待ってか�
 function fetchOAuthUsage(accessToken: string): Promise<OAuthUsageResponse> {
   return new Promise((resolve) => {
     const req = https.request({
-      hostname: "api.anthropic.com",
+      hostname: process.env.BYAKUGAN_OAUTH_API_HOSTNAME ?? "api.anthropic.com",
       path: "/api/oauth/usage",
       method: "GET",
       headers: {
@@ -232,7 +238,7 @@ async function collectSessionTokens(): Promise<{
   weeklyTokens: number;
   fiveHourResetsAt: string | null;
 }> {
-  const projectsDir = path.join(os.homedir(), ".claude", "projects");
+  const projectsDir = CLAUDE_PROJECTS_DIR;
   const now = Date.now();
   const fiveHoursAgo = now - 5 * 60 * 60 * 1000;
   const weekAgo = now - 7 * 24 * 60 * 60 * 1000;

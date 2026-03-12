@@ -1,5 +1,6 @@
 import express, { Request, Response } from "express";
 import path from "path";
+import os from "os";
 import { watch } from "fs";
 import { collectProcesses } from "./processCollector.js";
 import { focusVSCodeWindow, openWorktreeInVSCode } from "./vscodeController.js";
@@ -61,6 +62,11 @@ watch(publicDir, { recursive: true }, () => {
     console.log("[hot-reload] public/ changed — reloading clients");
     broadcastReload();
   }, 50);
+});
+
+// Client configuration (homeDir etc.)
+app.get("/api/config", (_req: Request, res: Response) => {
+  res.json({ homeDir: os.homedir() });
 });
 
 // REST snapshot

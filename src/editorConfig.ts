@@ -15,14 +15,14 @@ export const EDITOR_CONFIGS: EditorConfig[] = [
     app: "vscode",
     appName: "Visual Studio Code",
     bundleId: "com.microsoft.VSCode",
-    globalStoragePath: path.join(os.homedir(), "Library/Application Support/Code/User/globalStorage/storage.json"),
+    globalStoragePath: process.env.BYAKUGAN_VSCODE_STORAGE_PATH ?? path.join(os.homedir(), "Library/Application Support/Code/User/globalStorage/storage.json"),
     processPattern: /Visual Studio Code\.app\/Contents\/MacOS\//,
   },
   {
     app: "cursor",
     appName: "Cursor",
     bundleId: "com.todesktop.230313mzl4w4u92",
-    globalStoragePath: path.join(os.homedir(), "Library/Application Support/Cursor/User/globalStorage/storage.json"),
+    globalStoragePath: process.env.BYAKUGAN_CURSOR_STORAGE_PATH ?? path.join(os.homedir(), "Library/Application Support/Cursor/User/globalStorage/storage.json"),
     processPattern: /Cursor\.app\/Contents\/MacOS\/Cursor/,
   },
 ];
