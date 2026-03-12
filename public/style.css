@@ -118,6 +118,16 @@ body::after {
 }
 
 /* ── Header ── */
+#nested-session-banner {
+  background: rgba(255, 170, 64, 0.12);
+  border-bottom: 1px solid var(--amber);
+  color: var(--amber);
+  font-size: 11px;
+  padding: 6px 20px;
+  text-align: center;
+  letter-spacing: 0.04em;
+}
+
 header {
   display: flex;
   align-items: center;

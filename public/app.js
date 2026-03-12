@@ -341,6 +341,7 @@ function renderTable(data, grid) {
       return {
         starred: starredPids.has(primary.pid),
         name: project,
+        projectDir: primary.projectDir ?? "",
         order: orderMap ? (orderMap.get(primary.projectDir ?? String(primary.pid)) ?? Infinity) : Infinity,
         isEditor: false,
         html: tableRowHtml(primary, extras),
@@ -352,6 +353,7 @@ function renderTable(data, grid) {
       return {
         starred: starredDirs.has(w.projectDir),
         name: project,
+        projectDir: w.projectDir ?? "",
         order: orderMap ? (orderMap.get(w.projectDir) ?? Infinity) : Infinity,
         isEditor: true,
         html: editorRowHtml(w),
@@ -380,7 +382,7 @@ function renderTable(data, grid) {
         // rowOrderにない場合: Claudeプロセス行を先に
         if (a.isEditor !== b.isEditor) return a.isEditor ? 1 : -1;
       }
-      return a.name.localeCompare(b.name);
+      return a.name.localeCompare(b.name) || a.projectDir.localeCompare(b.projectDir);
     })
     .map(item => item.html)
     .join("");
@@ -696,7 +698,7 @@ function render(rawData) {
 
   const grid = document.getElementById("process-grid");
 
-  if (data.processes.length === 0) {
+  if (data.processes.length === 0 && (data.editorWindows ?? []).length === 0) {
     grid.innerHTML = '<div class="empty-state">No Claude processes found</div>';
     return;
   }
@@ -759,7 +761,14 @@ function focusWindow(pid, cardEl) {
 
 document.getElementById("process-grid").classList.add("list");
 
-fetch("/api/config").then(r => r.json()).then(cfg => { homeDir = cfg.homeDir ?? null; }).catch(() => {}).finally(() => connect());
+fetch("/api/config").then(r => r.json()).then(cfg => {
+  homeDir = cfg.homeDir ?? null;
+  if (cfg.nestedSession) {
+    const banner = document.getElementById("nested-session-banner");
+    banner.textContent = "⚠ Running inside a Claude Code session — new claude processes will fail to start (nested sessions are not supported)";
+    banner.style.display = "block";
+  }
+}).catch(() => {}).finally(() => connect());
 updateHiddenColStyles();
 
 document.getElementById("demo-toggle").addEventListener("click", function () {

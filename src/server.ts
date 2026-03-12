@@ -66,7 +66,11 @@ watch(publicDir, { recursive: true }, () => {
 
 // Client configuration (homeDir etc.)
 app.get("/api/config", (_req: Request, res: Response) => {
-  res.json({ homeDir: os.homedir() });
+  res.json({
+    homeDir: os.homedir(),
+    // CLAUDECODE env var が設定されている場合（空文字含む）、Claude Codeセッション内で起動している
+    nestedSession: "CLAUDECODE" in process.env,
+  });
 });
 
 // REST snapshot
