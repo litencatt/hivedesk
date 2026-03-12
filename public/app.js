@@ -698,7 +698,7 @@ function render(rawData) {
 
   const grid = document.getElementById("process-grid");
 
-  if (data.processes.length === 0) {
+  if (data.processes.length === 0 && (data.editorWindows ?? []).length === 0) {
     grid.innerHTML = '<div class="empty-state">No Claude processes found</div>';
     return;
   }

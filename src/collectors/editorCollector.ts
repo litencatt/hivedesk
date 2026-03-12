@@ -5,21 +5,23 @@ import { parseStorageFolders } from "../utils/processUtils.js";
 import { EDITOR_CONFIGS } from "../editorConfig.js";
 
 
+async function getRunningBundleIds(): Promise<Set<string>> {
+  try {
+    const { stdout } = await execFileAsync("osascript", [
+      "-e", 'tell application "System Events" to get bundle identifier of every process',
+    ]);
+    return new Set(stdout.split(", ").map(s => s.trim()).filter(Boolean));
+  } catch {
+    return new Set();
+  }
+}
+
 export async function collectEditorWindows(): Promise<EditorWindow[]> {
   const results: EditorWindow[] = [];
 
-  // Single ps call for all editor checks
-  let psOutput = "";
-  try {
-    const { stdout } = await execFileAsync("ps", ["-eo", "command"]);
-    psOutput = stdout;
-  } catch {
-    return results;
-  }
-  const psLines = psOutput.split("\n");
-
-  for (const { app, globalStoragePath, processPattern } of EDITOR_CONFIGS) {
-    if (!psLines.some(line => processPattern.test(line))) continue;
+  const runningIds = await getRunningBundleIds();
+  for (const { app, globalStoragePath, bundleId } of EDITOR_CONFIGS) {
+    if (!runningIds.has(bundleId)) continue;
 
     try {
       const content = await readFile(globalStoragePath, "utf-8");
