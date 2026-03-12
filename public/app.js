@@ -672,10 +672,15 @@ function updateFavicon(data) {
     ? `<circle cx="26" cy="6" r="6" fill="#22c55e" stroke="white" stroke-width="2"/>${workingCount > 1 ? `<text x="26" y="10" font-size="8" font-weight="bold" text-anchor="middle" fill="white">${workingCount}</text>` : ""}`
     : "";
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><text y="28" font-size="28">👁️</text>${badge}</svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><defs><radialGradient id="bg" cx="50%" cy="50%" r="70%"><stop offset="0%" stop-color="#f0e4d0"/><stop offset="100%" stop-color="#d8c4a8"/></radialGradient><radialGradient id="glow" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="white" stop-opacity="0.8"/><stop offset="100%" stop-color="white" stop-opacity="0"/></radialGradient></defs><rect width="32" height="32" rx="7" fill="url(#bg)"/><circle cx="16" cy="16" r="14" fill="url(#glow)" opacity="0.5"/><circle cx="16" cy="16" r="13" fill="white" opacity="0.15"/><g stroke="white" stroke-linecap="round" fill="none" opacity="0.75"><path d="M16 3 Q15 7 16 9 Q15 11 14 13" stroke-width="0.5"/><path d="M14 4 Q14 6 13 7" stroke-width="0.4"/><path d="M22 5 Q20 8 19 10 Q20 12 18 13" stroke-width="0.5"/><path d="M24 7 Q22 9 23 11" stroke-width="0.4"/><path d="M28 12 Q25 13 23 14 Q21 15 19 16" stroke-width="0.5"/><path d="M29 15 Q26 15 25 16" stroke-width="0.4"/><path d="M27 21 Q24 20 22 19 Q20 18 19 17" stroke-width="0.5"/><path d="M25 24 Q23 22 22 23" stroke-width="0.4"/><path d="M19 28 Q18 25 17 23 Q17 21 17 19" stroke-width="0.5"/><path d="M16 29 Q16 26 15 25" stroke-width="0.4"/><path d="M10 27 Q12 24 13 22 Q13 20 14 19" stroke-width="0.5"/><path d="M8 25 Q10 23 9 22" stroke-width="0.4"/><path d="M4 21 Q7 20 9 18 Q11 17 13 17" stroke-width="0.5"/><path d="M3 18 Q6 17 7 16" stroke-width="0.4"/><path d="M5 11 Q8 12 10 14 Q12 15 13 16" stroke-width="0.5"/><path d="M7 8 Q9 11 8 12" stroke-width="0.4"/><path d="M12 4 Q13 7 14 9 Q15 11 15 13" stroke-width="0.5"/></g><circle cx="16" cy="16" r="8" fill="none" stroke="rgba(200,185,165,0.6)" stroke-width="0.8"/><circle cx="16" cy="16" r="6.5" fill="none" stroke="rgba(210,195,175,0.5)" stroke-width="0.6"/><circle cx="16" cy="16" r="5.5" fill="white" opacity="0.95"/><circle cx="16" cy="16" r="5.5" fill="url(#glow)" opacity="0.3"/>${badge}</svg>`;
 
-  const link = document.querySelector('link[rel="icon"][type="image/svg+xml"]');
-  if (link) link.href = "data:image/svg+xml," + encodeURIComponent(svg);
+  const href = "data:image/svg+xml," + encodeURIComponent(svg);
+  document.querySelectorAll('link[rel="icon"]').forEach(el => el.remove());
+  const link = document.createElement("link");
+  link.rel = "icon";
+  link.type = "image/svg+xml";
+  link.href = href;
+  document.head.appendChild(link);
 }
 
 function render(rawData) {
