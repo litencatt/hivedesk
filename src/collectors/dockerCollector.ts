@@ -3,10 +3,10 @@ import { execFileAsync } from "../utils/execUtils.js";
 import path from "path";
 import { DockerContainer } from "../types.js";
 
-// BYAKUGAN_COMPOSE_FILE_PATTERNS でCompose対象ファイル名を変更できる（カンマ区切り）
-const COMPOSE_FILE_NAMES = (
-  process.env.BYAKUGAN_COMPOSE_FILE_PATTERNS ?? "docker-compose.yml,docker-compose.yaml,compose.yml,compose.yaml"
-).split(",").map(s => s.trim()).filter(Boolean);
+const COMPOSE_FILE_NAMES = [
+  "docker-compose.yml", "docker-compose.yaml",
+  "compose.yml", "compose.yaml",
+];
 
 export async function findComposeFile(dir: string, depth: number): Promise<string | null> {
   for (const name of COMPOSE_FILE_NAMES) {
