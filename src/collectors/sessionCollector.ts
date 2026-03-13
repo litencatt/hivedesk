@@ -170,8 +170,8 @@ let oauthCache: {
 // when cache is empty (e.g. multiple SSE clients connecting at the same time)
 let _inFlightOAuthRequest: Promise<OAuthUsageResponse> | null = null;
 
-// BYAKUGAN_OAUTH_CACHE_TTL でOAuth成功レスポンスのキャッシュ時間を変更できる（デフォルト: 300秒）
-const CACHE_TTL_SUCCESS_MS = parseInt(process.env.BYAKUGAN_OAUTH_CACHE_TTL ?? "300") * 1000;
+// BYAKUGAN_OAUTH_CACHE_TTL でOAuth成功レスポンスのキャッシュ時間を変更できる（デフォルト: 1800秒）
+const CACHE_TTL_SUCCESS_MS = parseInt(process.env.BYAKUGAN_OAUTH_CACHE_TTL ?? "1800") * 1000;
 const CACHE_TTL_FAILURE_BASE_MS = 10 * 60 * 1000; // 10分から開始し指数バックオフ
 const CACHE_TTL_FAILURE_MAX_MS = 60 * 60 * 1000; // 1 hour cap
 const CACHE_TTL_AUTH_ERROR_MS = 5 * 60 * 1000; // auth errorは5分待ってからリトライ
