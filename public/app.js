@@ -13,6 +13,7 @@ const _savedSort = JSON.parse(localStorage.getItem("sortState") || "null");
 let sortCol = _savedSort?.col ?? null;
 let sortDir = _savedSort?.dir ?? "asc";
 let selectedKey = null;
+let isDragging = false;
 
 const COL_DEFS = [
   { key: "star",       fixed: "22px", label: "",           stat: false, sortable: false },
@@ -136,7 +137,7 @@ function connect() {
     if (e.data === lastDataJson) return;
     lastDataJson = e.data;
     lastData = JSON.parse(e.data);
-    render(lastData);
+    if (!isDragging) render(lastData);
   });
 
   es.addEventListener("reload", () => {
@@ -589,14 +590,17 @@ function setupDragAndDrop(grid) {
   rows.forEach(row => {
     row.addEventListener("dragstart", (e) => {
       dragSrcKey = row.dataset.rowKey;
+      isDragging = true;
       e.dataTransfer.effectAllowed = "move";
       setTimeout(() => row.classList.add("dragging"), 0);
     });
 
     row.addEventListener("dragend", () => {
+      isDragging = false;
       row.classList.remove("dragging");
       clearIndicators();
       dragSrcKey = null;
+      if (lastData) render(lastData);
     });
 
     row.addEventListener("dragover", (e) => {
@@ -630,6 +634,10 @@ function setupDragAndDrop(grid) {
 
       rowOrder = currentOrder;
       localStorage.setItem("rowOrder", JSON.stringify(rowOrder));
+      // D&Dによる明示的な並び替えはカラムソートより優先する
+      sortCol = null;
+      sortDir = "asc";
+      localStorage.setItem("sortState", JSON.stringify({ col: null, dir: "asc" }));
       clearIndicators();
       if (lastData) render(lastData);
     });
