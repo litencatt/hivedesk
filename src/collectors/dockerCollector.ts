@@ -29,42 +29,35 @@ export async function findComposeFile(dir: string, depth: number): Promise<strin
   return null;
 }
 
-async function getWorktreeDirs(projectDir: string): Promise<string[]> {
-  try {
-    const { stdout } = await execFileAsync(
-      "git", ["-C", projectDir, "worktree", "list", "--porcelain"],
-      { timeout: 2000 }
-    );
-    const dirs: string[] = [];
-    for (const line of stdout.split("\n")) {
-      if (line.startsWith("worktree ")) {
-        dirs.push(line.slice("worktree ".length).trim());
-      }
-    }
-    return dirs.length > 0 ? dirs : [projectDir];
-  } catch {
-    return [projectDir];
-  }
-}
-
 async function collectContainersFromFile(composeFile: string): Promise<DockerContainer[]> {
   try {
     const { stdout } = await execFileAsync(
-      "docker", ["compose", "-f", composeFile, "ps", "--format", "json"],
+      "docker", ["compose", "-f", composeFile, "ps", "--all", "--format", "json"],
       { timeout: 3000 }
     );
-    const lines = stdout.trim().split("\n").filter(Boolean);
+    const trimmed = stdout.trim();
+    if (!trimmed) return [];
+
+    // Docker Compose v2.21+ outputs a JSON array; older versions output NDJSON
     const containers: DockerContainer[] = [];
-    for (const line of lines) {
-      try {
-        const obj = JSON.parse(line);
-        containers.push({
-          service: obj.Service ?? "",
-          name: obj.Name ?? "",
-          state: (obj.State ?? "").toLowerCase(),
-          status: obj.Status ?? "",
-        });
-      } catch { /* skip malformed */ }
+    const parseItem = (obj: Record<string, unknown>) => {
+      containers.push({
+        service: String(obj.Service ?? ""),
+        name: String(obj.Name ?? ""),
+        state: String(obj.State ?? "").toLowerCase(),
+        status: String(obj.Status ?? ""),
+      });
+    };
+
+    if (trimmed.startsWith("[")) {
+      // JSON array format
+      const arr = JSON.parse(trimmed) as Array<Record<string, unknown>>;
+      for (const obj of arr) parseItem(obj);
+    } else {
+      // NDJSON format
+      for (const line of trimmed.split("\n").filter(Boolean)) {
+        try { parseItem(JSON.parse(line) as Record<string, unknown>); } catch { /* skip malformed */ }
+      }
     }
     return containers;
   } catch {
@@ -74,28 +67,7 @@ async function collectContainersFromFile(composeFile: string): Promise<DockerCon
 
 export async function collectDockerContainers(projectDir: string): Promise<DockerContainer[]> {
   if (!projectDir) return [];
-
-  // Search all git worktrees so containers started from a different worktree are found
-  const worktreeDirs = await getWorktreeDirs(projectDir);
-
-  const results = await Promise.all(
-    worktreeDirs.map(async (dir) => {
-      const composeFile = await findComposeFile(dir, 2);
-      if (!composeFile) return [];
-      return collectContainersFromFile(composeFile);
-    })
-  );
-
-  // Deduplicate by container name
-  const seen = new Set<string>();
-  const containers: DockerContainer[] = [];
-  for (const batch of results) {
-    for (const c of batch) {
-      if (!seen.has(c.name)) {
-        seen.add(c.name);
-        containers.push(c);
-      }
-    }
-  }
-  return containers;
+  const composeFile = await findComposeFile(projectDir, 2);
+  if (!composeFile) return [];
+  return collectContainersFromFile(composeFile);
 }
