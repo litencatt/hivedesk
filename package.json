@@ -8,8 +8,7 @@
     "url": "https://github.com/litencatt/byakugan"
   },
   "scripts": {
-    "build": "tsc && npm run build:swift",
-    "build:swift": "swift build -c release --package-path tools/focus-window",
+    "build": "tsc",
     "start": "node dist/server.js",
     "dev": "BYAKUGAN_DEBUG=true tsx watch src/server.ts",
     "test": "vitest run",
