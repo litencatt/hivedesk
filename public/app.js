@@ -521,18 +521,18 @@ function renderTable(data, grid) {
   grid.querySelectorAll("tr[data-pid]").forEach(row => {
     const pid = parseInt(row.dataset.pid);
     const hasEditor = !!row.dataset.editorApp;
-    row.addEventListener("click", () => { selectedKey = String(pid); applySelectedClass(grid); if (hasEditor) openInVSCode(row.dataset.rowKey); });
+    row.addEventListener("click", () => { selectedKey = String(pid); applySelectedClass(grid); if (hasEditor) openInVSCode(row.dataset.rowKey, true); });
     row.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") { selectedKey = String(pid); applySelectedClass(grid); if (hasEditor) openInVSCode(row.dataset.rowKey); }
+      if (e.key === "Enter" || e.key === " ") { selectedKey = String(pid); applySelectedClass(grid); if (hasEditor) openInVSCode(row.dataset.rowKey, true); }
     });
   });
 
   grid.querySelectorAll("tr[data-dir]").forEach(row => {
     const dir = row.dataset.dir;
     const app = row.dataset.app;
-    row.addEventListener("click", () => { selectedKey = dir; applySelectedClass(grid); openInVSCode(dir); });
+    row.addEventListener("click", () => { selectedKey = dir; applySelectedClass(grid); openInVSCode(dir, true); });
     row.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") { selectedKey = dir; applySelectedClass(grid); openInVSCode(dir); }
+      if (e.key === "Enter" || e.key === " ") { selectedKey = dir; applySelectedClass(grid); openInVSCode(dir, true); }
     });
   });
 
