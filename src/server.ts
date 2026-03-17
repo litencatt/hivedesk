@@ -84,7 +84,7 @@ app.get("/api/processes", async (_req: Request, res: Response) => {
   }
 });
 
-// Focus VSCode window
+// Focus VSCode window (activate without changing window content)
 app.post("/api/focus", async (req: Request, res: Response) => {
   const { pid } = req.body as { pid?: number };
   if (!pid) {
@@ -97,21 +97,15 @@ app.post("/api/focus", async (req: Request, res: Response) => {
     res.status(404).json({ error: "Process not found" });
     return;
   }
-  // Respond immediately, focus in background
   res.json({ success: true });
-  focusVSCodeWindow(proc.projectDir, proc.editorApp ?? "vscode").catch(() => {});
+  focusVSCodeWindow(proc.editorApp ?? "vscode").catch(() => {});
 });
 
-// Focus editor window (no Claude process)
+// Focus editor window (activate without changing window content)
 app.post("/api/focus-editor", async (req: Request, res: Response) => {
-  const { projectDir, app: editorApp } = req.body as { projectDir?: string; app?: string };
-  if (!projectDir) {
-    res.status(400).json({ error: "projectDir is required" });
-    return;
-  }
-  // Respond immediately, focus in background
+  const { app: editorApp } = req.body as { app?: string };
   res.json({ success: true });
-  focusVSCodeWindow(projectDir, editorApp === "cursor" ? "cursor" : "vscode").catch(() => {});
+  focusVSCodeWindow(editorApp === "cursor" ? "cursor" : "vscode").catch(() => {});
 });
 
 // Open worktree in VSCode via extension

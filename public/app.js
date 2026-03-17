@@ -741,29 +741,11 @@ function applyFocusAnimation(cardEl) {
   }
 }
 
-function focusEditorWindow(dir, app, cardEl) {
-  applyFocusAnimation(cardEl);
-  fetch("/api/focus-editor", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ projectDir: dir, app }),
-  }).catch(() => {});
-}
-
 function openInVSCode(worktreePath, newWindow) {
   fetch("/api/open-worktree", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ path: worktreePath, newWindow: newWindow ?? false }),
-  }).catch(() => {});
-}
-
-function focusWindow(pid, cardEl) {
-  applyFocusAnimation(cardEl);
-  fetch("/api/focus", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ pid }),
   }).catch(() => {});
 }
 
