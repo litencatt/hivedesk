@@ -9,8 +9,8 @@ import { EDITOR_CONFIGS } from "./editorConfig.js";
 
 const MCP_BRIDGE_PATHS = ["/mcp", "mcp-server", "mcp_server", ".mcp"];
 
-// BYAKUGAN_DOCKER=true の場合のみDocker Compose連携を有効化
-const DOCKER_ENABLED = process.env.BYAKUGAN_DOCKER === "true";
+// BYAKUGAN_DOCKER=false の場合のみDocker Compose連携を無効化（デフォルト: 有効）
+const DOCKER_ENABLED = process.env.BYAKUGAN_DOCKER !== "false";
 
 // BYAKUGAN_PROCESS_NAMES でモニタリング対象のプロセス名を変更できる（カンマ区切り、デフォルト: "claude"）
 const MONITORED_PROCESS_NAMES = new Set(
