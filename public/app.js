@@ -17,10 +17,10 @@ let isDragging = false;
 
 const COL_DEFS = [
   { key: "star",       fixed: "22px", label: "",           stat: false, sortable: false },
-  { key: "project",    fixed: null,   label: "Project",    stat: false, sortable: true  },
-  { key: "branch",     fixed: null,   label: "Branch",     stat: false, sortable: true  },
+  { key: "project",    fixed: "16%",  label: "Project",    stat: false, sortable: true  },
+  { key: "branch",     fixed: "18%",  label: "Branch",     stat: false, sortable: true  },
   { key: "pr",         fixed: null,   label: "PR",         stat: false, sortable: false },
-  { key: "containers", fixed: "70px",  label: "Containers", stat: false, sortable: false },
+  { key: "containers", fixed: "90px",  label: "Containers", stat: false, sortable: false },
   { key: "status",     fixed: "110px", label: "Status",     stat: false, sortable: false },
   { key: "cpu",        fixed: "64px",  label: "CPU",        stat: true,  sortable: true  },
   { key: "mem",        fixed: "64px",  label: "MEM",        stat: true,  sortable: true  },
@@ -43,7 +43,12 @@ function updateHiddenColStyles() {
     if (hiddenColumns.has(c.key)) {
       const n = i + 1;
       rules.push(`.process-table td:nth-child(${n}) { padding: 0 !important; overflow: hidden; }`);
-      rules.push(`.process-table td:nth-child(${n}) > * { display: none !important; }`);
+      if (c.key === "status") {
+        rules.push(`.process-table td:nth-child(${n}) .status-full { display: none !important; }`);
+        rules.push(`.process-table td:nth-child(${n}) .status-summary { display: inline !important; }`);
+      } else {
+        rules.push(`.process-table td:nth-child(${n}) > * { display: none !important; }`);
+      }
     }
   });
   styleEl.textContent = rules.join("\n");
@@ -288,7 +293,7 @@ function tableRowHtml(proc, extraProcs = []) {
       <td class="tbl-branch">${cellBranchHtml(proc.gitBranch)}</td>
       <td class="tbl-pr">${cellPrHtml(proc.prUrl, proc.prTitle)}</td>
       <td class="tbl-containers">${containersHtml}</td>
-      <td class="tbl-status"><span class="status-summary" style="display:none">${statusEmoji(proc)}</span><span class="status-full">${proc.claudeStatus ? `<span class="claude-status claude-status-${proc.claudeStatus}">${escapeHtml(proc.claudeStatus)}</span>` : ""}</span></td>
+      <td class="tbl-status"><span class="status-summary">${statusEmoji(proc)}</span><span class="status-full">${proc.claudeStatus ? `<span class="claude-status claude-status-${proc.claudeStatus}">${escapeHtml(proc.claudeStatus)}</span>` : ""}</span></td>
       <td class="tbl-stat">${proc.cpuPercent.toFixed(1)}%</td>
       <td class="tbl-stat">${proc.memPercent.toFixed(1)}%</td>
       <td class="tbl-stat">${formatElapsed(proc.elapsedSeconds)}</td>

@@ -686,10 +686,14 @@ td.tbl-pr {
   padding-right: 4px;
 }
 
-td.tbl-status {
+td.tbl-status,
+.process-table thead th[data-col-toggle="status"] {
   white-space: nowrap;
   text-align: center;
 }
+
+.status-summary { display: none; }
+.status-full { display: inline; }
 
 .tbl-icons {
   display: inline-flex;
