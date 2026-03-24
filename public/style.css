@@ -695,14 +695,15 @@ td.tbl-status,
 .status-summary { display: none; }
 .status-full { display: inline; }
 
-.tbl-icons {
+.tbl-icons-inner {
   display: inline-flex;
   align-items: center;
-  vertical-align: middle;
   gap: 4px;
+  vertical-align: middle;
 }
 
-td.tbl-actions {
+td.tbl-actions,
+.process-table thead th[data-col-toggle="actions"] {
   width: 28px;
   text-align: center;
   padding: 0 4px;

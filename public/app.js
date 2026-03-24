@@ -25,8 +25,8 @@ const COL_DEFS = [
   { key: "cpu",        fixed: "64px",  label: "CPU",        stat: true,  sortable: true  },
   { key: "mem",        fixed: "64px",  label: "MEM",        stat: true,  sortable: true  },
   { key: "uptime",     fixed: "82px",  label: "Uptime",     stat: true,  sortable: true  },
-  { key: "icons",      fixed: "52px",  label: "",           stat: false, sortable: false },
-  { key: "actions",   fixed: "32px",  label: "",           stat: false, sortable: false },
+  { key: "icons",      fixed: "52px",  label: "Icon",       stat: false, sortable: false, hideable: false },
+  { key: "actions",   fixed: "32px",  label: "Del",        stat: false, sortable: false, hideable: false },
 ];
 
 const HIDDEN_COL_W = "14px";
@@ -297,11 +297,7 @@ function tableRowHtml(proc, extraProcs = []) {
       <td class="tbl-stat">${proc.cpuPercent.toFixed(1)}%</td>
       <td class="tbl-stat">${proc.memPercent.toFixed(1)}%</td>
       <td class="tbl-stat">${formatElapsed(proc.elapsedSeconds)}</td>
-      <td class="tbl-icons">
-        ${proc.editorApp ? `<img src="${proc.editorApp}.svg" class="editor-icon" alt="${proc.editorApp}">` : ""}
-        <img src="claude.svg" class="claude-icon" alt="Claude">
-        ${extraProcs.length > 0 ? `<span class="duplicate-badge">×${extraProcs.length + 1}</span>` : ""}
-      </td>
+      <td class="tbl-icons"><span class="tbl-icons-inner">${proc.editorApp ? `<img src="${proc.editorApp}.svg" class="editor-icon" alt="${proc.editorApp}">` : ""}<img src="claude.svg" class="claude-icon" alt="Claude">${extraProcs.length > 0 ? `<span class="duplicate-badge">×${extraProcs.length + 1}</span>` : ""}</span></td>
       <td class="tbl-actions">
         <button class="row-delete-btn" data-delete-key="${rowKey}" title="非表示">×</button>
       </td>
@@ -321,7 +317,7 @@ function editorRowHtml(w) {
       <td class="tbl-stat"></td>
       <td class="tbl-stat"></td>
       <td class="tbl-stat"></td>
-      <td class="tbl-icons"><img src="${w.app}.svg" class="editor-icon" alt="${w.app}"></td>
+      <td class="tbl-icons"><span class="tbl-icons-inner"><img src="${w.app}.svg" class="editor-icon" alt="${w.app}"></span></td>
       <td class="tbl-actions"><button class="row-delete-btn" data-delete-key="${escapeHtml(w.projectDir)}" title="非表示">×</button></td>
     </tr>
   `;
@@ -429,7 +425,7 @@ function renderTable(data, grid) {
             <td class="tbl-stat"></td>
             <td class="tbl-stat"></td>
             <td class="tbl-stat"></td>
-            <td class="tbl-icons">${d.app ? `<img src="${escapeHtml(d.app)}.svg" class="editor-icon" alt="${escapeHtml(d.app)}">` : ""}</td>
+            <td class="tbl-icons"><span class="tbl-icons-inner">${d.app ? `<img src="${escapeHtml(d.app)}.svg" class="editor-icon" alt="${escapeHtml(d.app)}">` : ""}</span></td>
             <td class="tbl-actions"><button class="row-restore-btn" data-restore-key="${escapeHtml(d.key)}" title="メインに戻す">↩</button></td>
           </tr>
         `).join(""))
@@ -448,7 +444,7 @@ function renderTable(data, grid) {
       const indicator = sortCol === c.key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
       return `<th${cls ? ` class="${cls}"` : ""} data-col-sort="${c.key}" title="${c.label}">${c.label}${indicator}${!hidden ? `<span class="col-hide-btn" data-hide-col="${c.key}" title="列を非表示">×</span>` : ""}</th>`;
     }
-    return `<th${cls ? ` class="${cls}"` : ""} data-col-toggle="${c.key}" title="${c.label || c.key}">${c.label}${!hidden ? `<span class="col-hide-btn" title="列を非表示">×</span>` : ""}</th>`;
+    return `<th${cls ? ` class="${cls}"` : ""} data-col-toggle="${c.key}" title="${c.label || c.key}">${c.label}${!hidden && c.hideable !== false ? `<span class="col-hide-btn" title="列を非表示">×</span>` : ""}</th>`;
   }).join("")}</tr></thead>`;
 
   grid.innerHTML = `
