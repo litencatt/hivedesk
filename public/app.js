@@ -3,7 +3,6 @@ let demoMode = false;
 let homeDir = null;
 let lastData = null;
 let lastDataJson = null;
-let starredPids = new Set(JSON.parse(localStorage.getItem("starredPids") || "[]"));
 let starredDirs = new Set(JSON.parse(localStorage.getItem("starredDirs") || "[]"));
 let editorSectionCollapsed = localStorage.getItem("editorSectionCollapsed") === "true";
 let hiddenColumns = new Set(JSON.parse(localStorage.getItem("hiddenColumns") || "[]"));
@@ -70,57 +69,72 @@ const DEMO_ORGS = ["demo-org", "my-company"];
 
 function generateDemoData(collectedAt) {
   // Fully synthetic demo data — no real data used
-  const processes = [
-    { repo: "my-webapp",      org: "demo-org",   branch: "feat/search-feature",  pr: 0, containers: 2, cpu: 22.4, mem: 1.6, elapsed: 3600*7+59*60, status: "working", claudeStatus: "executing", model: "sonnet-4-6" },
-    { repo: "api-service",    org: "demo-org",   branch: "chore/deps-update",    pr: 1, containers: 0, cpu: 0.3,  mem: 0.2, elapsed: 3600*7+0*60,  status: "idle",    claudeStatus: "waiting",   model: "sonnet-4-6" },
-    { repo: "api-service",    org: "demo-org",   branch: "feat/user-auth",       pr: 2, containers: 0, cpu: 0.0,  mem: 0.5, elapsed: 3600*1+4*60,  status: "idle",    claudeStatus: null,        model: "sonnet-4-6" },
-    { repo: "project-alpha",  org: "my-company", branch: "fix/payment-bug",      pr: 3, containers: 4, cpu: 0.4,  mem: 0.2, elapsed: 3600*7+49*60, status: "idle",    claudeStatus: "thinking",  model: "opus-4-6"   },
-    { repo: "data-pipeline", org: "my-company", branch: "docs/api-update",      pr: 4, containers: 0, cpu: 0.0,  mem: 0.2, elapsed: 3600*5+13*60, status: "idle",    claudeStatus: null,        model: "sonnet-4-6" },
-  ].map((d, i) => ({
-    pid: 10000 + i * 111,
-    projectName: d.repo,
-    projectDir: `/Users/demo/projects/${d.repo}`,
-    cpuPercent: d.cpu,
-    memPercent: d.mem,
-    status: d.status,
-    claudeStatus: d.claudeStatus,
-    stat: "S",
-    elapsedTime: `${Math.floor(d.elapsed/3600)}:${String(Math.floor((d.elapsed%3600)/60)).padStart(2,"0")}:${String(d.elapsed%60).padStart(2,"0")}`,
-    elapsedSeconds: d.elapsed,
-    currentTask: DEMO_TASKS[i % DEMO_TASKS.length],
-    openFiles: DEMO_FILES.slice(0, 3),
-    gitBranch: d.branch,
-    gitCommonDir: `/Users/demo/projects/${d.repo}/.git`,
-    modelName: `claude-${d.model}`,
-    prUrl: `https://github.com/${d.org}/${d.repo}/pull/${DEMO_PR_BASE + d.pr * 111}`,
-    prTitle: DEMO_TASKS[d.pr % DEMO_TASKS.length],
-    editorApp: i % 2 === 0 ? "vscode" : "cursor",
-    isMcpBridge: false,
-    containers: d.containers > 0
-      ? DEMO_CONTAINERS.slice(0, d.containers).map(s => ({ service: s, name: `${s}-1`, state: "running", status: "Up 2 hours" }))
-      : [],
-  }));
+  const sessionDefs = [
+    { repo: "my-webapp",     org: "demo-org",   branch: "feat/search-feature", pr: 0, containers: 2, cpu: 22.4, mem: 1.6, elapsed: 3600*7+59*60, status: "working", claudeStatus: "executing", model: "sonnet-4-6", terminal: "vscode"  },
+    { repo: "api-service",   org: "demo-org",   branch: "chore/deps-update",   pr: 1, containers: 0, cpu: 0.3,  mem: 0.2, elapsed: 3600*7+0*60,  status: "idle",    claudeStatus: "waiting",   model: "sonnet-4-6", terminal: "cursor"  },
+    { repo: "api-service",   org: "demo-org",   branch: "feat/user-auth",      pr: 2, containers: 0, cpu: 0.0,  mem: 0.5, elapsed: 3600*1+4*60,  status: "idle",    claudeStatus: null,        model: "sonnet-4-6", terminal: "cursor"  },
+    { repo: "project-alpha", org: "my-company", branch: "fix/payment-bug",     pr: 3, containers: 4, cpu: 0.4,  mem: 0.2, elapsed: 3600*7+49*60, status: "idle",    claudeStatus: "thinking",  model: "opus-4-6",   terminal: "ghostty" },
+    { repo: "data-pipeline", org: "my-company", branch: "docs/api-update",     pr: 4, containers: 0, cpu: 0.0,  mem: 0.2, elapsed: 3600*5+13*60, status: "idle",    claudeStatus: null,        model: "sonnet-4-6", terminal: "vscode"  },
+  ];
 
-  const editorWindows = [
-    { repo: "frontend-app",  org: "demo-org",   branch: "feat/dashboard-v2", pr: true,  app: "vscode" },
-    { repo: "data-pipeline", org: "my-company", branch: "refactor/db-layer", pr: false, app: "cursor" },
-    { repo: "auth-service",  org: "demo-org",   branch: "fix/login-issue",   pr: true,  app: "vscode" },
-  ].map((d, i) => ({
-    app: d.app,
-    projectDir: `/Users/demo/projects/${d.repo}`,
-    projectName: d.repo,
-    gitBranch: d.branch,
-    gitCommonDir: `/Users/demo/projects/${d.repo}/.git`,
-    prUrl: d.pr ? `https://github.com/${d.org}/${d.repo}/pull/${DEMO_PR_BASE + (i + 10) * 77}` : null,
-    prTitle: d.pr ? DEMO_TASKS[(i + 2) % DEMO_TASKS.length] : null,
-  }));
+  const worktreeMap = new Map();
+  sessionDefs.forEach((d, i) => {
+    const key = `${d.repo}/${d.branch}`;
+    if (!worktreeMap.has(key)) {
+      worktreeMap.set(key, {
+        projectDir: `/Users/demo/projects/${d.repo}`,
+        projectName: d.repo,
+        gitBranch: d.branch,
+        gitCommonDir: `/Users/demo/projects/${d.repo}/.git`,
+        prUrl: `https://github.com/${d.org}/${d.repo}/pull/${DEMO_PR_BASE + d.pr * 111}`,
+        prTitle: DEMO_TASKS[d.pr % DEMO_TASKS.length],
+        containers: d.containers > 0
+          ? DEMO_CONTAINERS.slice(0, d.containers).map(s => ({ service: s, name: `${s}-1`, state: "running", status: "Up 2 hours" }))
+          : [],
+        terminal: d.terminal,
+        sessions: [],
+      });
+    }
+    worktreeMap.get(key).sessions.push({
+      pid: 10000 + i * 111,
+      cpuPercent: d.cpu,
+      memPercent: d.mem,
+      status: d.status,
+      claudeStatus: d.claudeStatus,
+      stat: "S",
+      elapsedTime: `${Math.floor(d.elapsed/3600)}:${String(Math.floor((d.elapsed%3600)/60)).padStart(2,"0")}:${String(d.elapsed%60).padStart(2,"0")}`,
+      elapsedSeconds: d.elapsed,
+      currentTask: DEMO_TASKS[i % DEMO_TASKS.length],
+      openFiles: DEMO_FILES.slice(0, 3),
+      modelName: `claude-${d.model}`,
+      isMcpBridge: false,
+    });
+  });
 
+  // Editor-only worktrees (no Claude session)
+  [
+    { repo: "frontend-app", org: "demo-org",   branch: "feat/dashboard-v2", pr: true,  terminal: "vscode" },
+    { repo: "auth-service", org: "demo-org",   branch: "fix/login-issue",   pr: true,  terminal: "cursor" },
+  ].forEach((d, i) => {
+    worktreeMap.set(d.repo, {
+      projectDir: `/Users/demo/projects/${d.repo}`,
+      projectName: d.repo,
+      gitBranch: d.branch,
+      gitCommonDir: `/Users/demo/projects/${d.repo}/.git`,
+      prUrl: d.pr ? `https://github.com/${d.org}/${d.repo}/pull/${DEMO_PR_BASE + (i + 10) * 77}` : null,
+      prTitle: d.pr ? DEMO_TASKS[(i + 2) % DEMO_TASKS.length] : null,
+      containers: [],
+      terminal: d.terminal,
+      sessions: [],
+    });
+  });
+
+  const worktrees = [...worktreeMap.values()];
   return {
-    processes,
-    editorWindows,
+    worktrees,
     collectedAt: collectedAt || new Date().toISOString(),
-    totalWorking: processes.filter(p => p.status === "working").length,
-    totalIdle: processes.filter(p => p.status === "idle").length,
+    totalWorking: worktrees.filter(wt => wt.sessions.some(s => s.status === "working")).length,
+    totalIdle: worktrees.filter(wt => wt.sessions.length > 0 && wt.sessions.every(s => s.status === "idle")).length,
     usage: {
       totalInputTokens: 459000,
       totalOutputTokens: 6200,
@@ -221,24 +235,6 @@ function shortenPath(p) {
   return p;
 }
 
-// Merge duplicate processes sharing the same projectDir into one entry
-function mergeByDir(procs) {
-  const byDir = new Map();
-  for (const proc of procs) {
-    const key = proc.projectDir ?? String(proc.pid);
-    if (!byDir.has(key)) byDir.set(key, []);
-    byDir.get(key).push(proc);
-  }
-  return [...byDir.values()].map(dirProcs => {
-    if (dirProcs.length === 1) return { primary: dirProcs[0], extras: [] };
-    const sorted = [...dirProcs].sort((a, b) => {
-      if (a.status === "working" && b.status !== "working") return -1;
-      if (b.status === "working" && a.status !== "working") return 1;
-      return b.pid - a.pid;
-    });
-    return { primary: sorted[0], extras: sorted.slice(1) };
-  });
-}
 
 function cellBranchHtml(gitBranch) {
   return gitBranch
@@ -273,96 +269,77 @@ function statusEmoji(proc) {
   return "⚪";
 }
 
-function tableRowHtml(proc, extraProcs = []) {
-  const running = (proc.containers ?? []).filter(c => c.state === "running");
-  const stopped = (proc.containers ?? []).filter(c => c.state !== "running");
-  const containerTooltip = proc.containers && proc.containers.length > 0
+function worktreeRowHtml(wt) {
+  const sessions = [...wt.sessions].sort((a, b) => {
+    if (a.status === "working" && b.status !== "working") return -1;
+    if (b.status === "working" && a.status !== "working") return 1;
+    return b.pid - a.pid;
+  });
+  const primary = sessions[0] ?? null;
+
+  const running = (wt.containers ?? []).filter(c => c.state === "running");
+  const stopped = (wt.containers ?? []).filter(c => c.state !== "running");
+  const containerTooltip = wt.containers && wt.containers.length > 0
     ? [...running.map(c => `▶ ${c.service}`), ...stopped.map(c => `■ ${c.service}`)].join("\n")
     : "";
-  const containersSummary = proc.containers && proc.containers.length > 0 && running.length > 0
-    ? `<span class="containers-summary">🐳 ${running.length}</span>`
-    : `<span class="containers-summary"></span>`;
-  const containersHtml = proc.containers && proc.containers.length > 0
-    ? `${containersSummary}<span class="containers-full" title="${escapeHtml(containerTooltip)}">🐳 <span class="containers-count">${running.length}/${proc.containers.length}</span></span>`
+  const containersHtml = wt.containers && wt.containers.length > 0
+    ? `<span class="containers-summary">🐳 ${running.length}</span><span class="containers-full" title="${escapeHtml(containerTooltip)}">🐳 <span class="containers-count">${running.length}/${wt.containers.length}</span></span>`
     : "";
-  const rowKey = escapeHtml(proc.projectDir ?? String(proc.pid));
-  return `
-    <tr class="${proc.status}" data-pid="${proc.pid}" data-row-key="${rowKey}"${proc.editorApp ? ` data-editor-app="${proc.editorApp}"` : ""} tabindex="0" role="button" draggable="true">
-      <td class="tbl-star${starredPids.has(proc.pid) ? " starred" : ""}" data-star-pid="${proc.pid}">${starredPids.has(proc.pid) ? "★" : "☆"}</td>
-      <td class="tbl-project"><div>${escapeHtml(orgRepo(proc.projectDir, proc.gitCommonDir))}</div><div class="tbl-project-dir">${escapeHtml(shortenPath(proc.projectDir))}</div></td>
-      <td class="tbl-branch">${cellBranchHtml(proc.gitBranch)}</td>
-      <td class="tbl-pr">${cellPrHtml(proc.prUrl, proc.prTitle)}</td>
-      <td class="tbl-containers">${containersHtml}</td>
-      <td class="tbl-status"><span class="status-summary">${statusEmoji(proc)}</span><span class="status-full">${proc.claudeStatus ? `<span class="claude-status claude-status-${proc.claudeStatus}">${escapeHtml(proc.claudeStatus)}</span>` : ""}</span></td>
-      <td class="tbl-stat">${proc.cpuPercent.toFixed(1)}%</td>
-      <td class="tbl-stat">${proc.memPercent.toFixed(1)}%</td>
-      <td class="tbl-stat">${formatElapsed(proc.elapsedSeconds)}</td>
-      <td class="tbl-icons"><span class="tbl-icons-inner">${proc.editorApp ? `<img src="${proc.editorApp}.svg" class="editor-icon" alt="${proc.editorApp}">` : ""}<img src="claude.svg" class="claude-icon" alt="Claude">${extraProcs.length > 0 ? `<span class="duplicate-badge">×${extraProcs.length + 1}</span>` : ""}</span></td>
-      <td class="tbl-actions">
-        <button class="row-delete-btn" data-delete-key="${rowKey}" title="非表示">×</button>
-      </td>
-    </tr>
-  `;
-}
 
-function editorRowHtml(w) {
+  const rowKey = escapeHtml(wt.projectDir);
+  const rowClass = primary ? primary.status : "tbl-editor-row";
+  const dataPid = primary ? ` data-pid="${primary.pid}"` : "";
+  const dataTerminal = wt.terminal ? ` data-terminal="${escapeHtml(wt.terminal)}"` : "";
+  const iconsHtml = `<span class="tbl-icons-inner">${wt.terminal ? `<img src="${escapeHtml(wt.terminal)}.svg" class="editor-icon" alt="${escapeHtml(wt.terminal)}">` : ""}${primary ? `<img src="claude.svg" class="claude-icon" alt="Claude">` : ""}${sessions.length > 1 ? `<span class="duplicate-badge">×${sessions.length}</span>` : ""}</span>`;
+
   return `
-    <tr class="tbl-editor-row" data-dir="${escapeHtml(w.projectDir)}" data-app="${escapeHtml(w.app)}" data-row-key="${escapeHtml(w.projectDir)}" tabindex="0" role="button" draggable="true">
-      <td class="tbl-star${starredDirs.has(w.projectDir) ? " starred" : ""}" data-star-dir="${escapeHtml(w.projectDir)}">${starredDirs.has(w.projectDir) ? "★" : "☆"}</td>
-      <td class="tbl-project"><div>${escapeHtml(orgRepo(w.projectDir, w.gitCommonDir))}</div><div class="tbl-project-dir">${escapeHtml(shortenPath(w.projectDir))}</div></td>
-      <td class="tbl-branch">${cellBranchHtml(w.gitBranch)}</td>
-      <td class="tbl-pr">${cellPrHtml(w.prUrl, w.prTitle)}</td>
-      <td class="tbl-containers"></td>
-      <td class="tbl-status"></td>
-      <td class="tbl-stat"></td>
-      <td class="tbl-stat"></td>
-      <td class="tbl-stat"></td>
-      <td class="tbl-icons"><span class="tbl-icons-inner"><img src="${w.app}.svg" class="editor-icon" alt="${w.app}"></span></td>
-      <td class="tbl-actions"><button class="row-delete-btn" data-delete-key="${escapeHtml(w.projectDir)}" title="非表示">×</button></td>
+    <tr class="${rowClass}"${dataPid} data-row-key="${rowKey}"${dataTerminal} tabindex="0" role="button" draggable="true">
+      <td class="tbl-star${starredDirs.has(wt.projectDir) ? " starred" : ""}" data-star-dir="${escapeHtml(wt.projectDir)}">${starredDirs.has(wt.projectDir) ? "★" : "☆"}</td>
+      <td class="tbl-project"><div>${escapeHtml(orgRepo(wt.projectDir, wt.gitCommonDir))}</div><div class="tbl-project-dir">${escapeHtml(shortenPath(wt.projectDir))}</div></td>
+      <td class="tbl-branch">${cellBranchHtml(wt.gitBranch)}</td>
+      <td class="tbl-pr">${cellPrHtml(wt.prUrl, wt.prTitle)}</td>
+      <td class="tbl-containers">${containersHtml}</td>
+      <td class="tbl-status">${primary ? `<span class="status-summary">${statusEmoji(primary)}</span><span class="status-full">${primary.claudeStatus ? `<span class="claude-status claude-status-${primary.claudeStatus}">${escapeHtml(primary.claudeStatus)}</span>` : ""}</span>` : ""}</td>
+      <td class="tbl-stat">${primary ? primary.cpuPercent.toFixed(1) + "%" : ""}</td>
+      <td class="tbl-stat">${primary ? primary.memPercent.toFixed(1) + "%" : ""}</td>
+      <td class="tbl-stat">${primary ? formatElapsed(primary.elapsedSeconds) : ""}</td>
+      <td class="tbl-icons">${iconsHtml}</td>
+      <td class="tbl-actions"><button class="row-delete-btn" data-delete-key="${rowKey}" title="非表示">×</button></td>
     </tr>
   `;
 }
 
 function renderTable(data, grid) {
-  const mergedRows = mergeByDir([...data.processes]);
-  const claudeDirs = new Set(data.processes.map(p => p.projectDir).filter(Boolean));
+  const visibleWorktrees = (data.worktrees ?? [])
+    .filter(wt => !hiddenRows.has(wt.projectDir));
 
-  const claudeVisible = [...mergedRows]
-    .filter(({ primary }) => !hiddenRows.has(primary.projectDir ?? String(primary.pid)));
-  const editorVisible = (data.editorWindows ?? [])
-    .filter(w => !claudeDirs.has(w.projectDir) && !hiddenRows.has(w.projectDir));
-
-  // 全行を統合してスター優先→ソート（rowOrderは全行のD&D順序に使用）
   const orderMap = rowOrder && rowOrder.length > 0
     ? new Map(rowOrder.map((k, i) => [k, i]))
     : null;
 
-  const allItems = [
-    ...claudeVisible.map(({ primary, extras }) => {
-      const project = orgRepo(primary.projectDir, primary.gitCommonDir);
-      return {
-        starred: starredPids.has(primary.pid),
-        name: project,
-        projectDir: primary.projectDir ?? "",
-        order: orderMap ? (orderMap.get(primary.projectDir ?? String(primary.pid)) ?? Infinity) : Infinity,
-        isEditor: false,
-        html: tableRowHtml(primary, extras),
-        sortValues: { project, branch: primary.gitBranch ?? null, cpu: primary.cpuPercent, mem: primary.memPercent, uptime: primary.elapsedSeconds },
-      };
-    }),
-    ...editorVisible.map(w => {
-      const project = orgRepo(w.projectDir, w.gitCommonDir);
-      return {
-        starred: starredDirs.has(w.projectDir),
-        name: project,
-        projectDir: w.projectDir ?? "",
-        order: orderMap ? (orderMap.get(w.projectDir) ?? Infinity) : Infinity,
-        isEditor: true,
-        html: editorRowHtml(w),
-        sortValues: { project, branch: w.gitBranch ?? null, cpu: null, mem: null, uptime: null },
-      };
-    }),
-  ];
+  const allItems = visibleWorktrees.map(wt => {
+    const project = orgRepo(wt.projectDir, wt.gitCommonDir);
+    const primary = [...wt.sessions].sort((a, b) => {
+      if (a.status === "working" && b.status !== "working") return -1;
+      if (b.status === "working" && a.status !== "working") return 1;
+      return b.pid - a.pid;
+    })[0] ?? null;
+    return {
+      starred: starredDirs.has(wt.projectDir),
+      name: project,
+      projectDir: wt.projectDir,
+      order: orderMap ? (orderMap.get(wt.projectDir) ?? Infinity) : Infinity,
+      hasSession: wt.sessions.length > 0,
+      html: worktreeRowHtml(wt),
+      sortValues: {
+        project,
+        branch: wt.gitBranch ?? null,
+        cpu: primary?.cpuPercent ?? null,
+        mem: primary?.memPercent ?? null,
+        uptime: primary?.elapsedSeconds ?? null,
+      },
+    };
+  });
 
   const tableRows = allItems
     .sort((a, b) => {
@@ -381,8 +358,8 @@ function renderTable(data, grid) {
       } else {
         // D&Dカスタム順（全行に適用）
         if (a.order !== b.order) return a.order - b.order;
-        // rowOrderにない場合: Claudeプロセス行を先に
-        if (a.isEditor !== b.isEditor) return a.isEditor ? 1 : -1;
+        // rowOrderにない場合: Claudeセッションあり行を先に
+        if (a.hasSession !== b.hasSession) return a.hasSession ? -1 : 1;
       }
       return a.name.localeCompare(b.name) || a.projectDir.localeCompare(b.projectDir);
     })
@@ -392,17 +369,10 @@ function renderTable(data, grid) {
   // Recently Opened Projects: rows dismissed via × button
   const dismissedKeys = new Set();
   const dismissed = [];
-  for (const { primary } of mergedRows) {
-    const key = primary.projectDir ?? String(primary.pid);
-    if (hiddenRows.has(key) && !dismissedKeys.has(key)) {
-      dismissedKeys.add(key);
-      dismissed.push({ key, projectDir: primary.projectDir, gitCommonDir: primary.gitCommonDir, gitBranch: primary.gitBranch, prUrl: primary.prUrl, prTitle: primary.prTitle, app: primary.editorApp });
-    }
-  }
-  for (const w of (data.editorWindows ?? [])) {
-    if (hiddenRows.has(w.projectDir) && !dismissedKeys.has(w.projectDir)) {
-      dismissedKeys.add(w.projectDir);
-      dismissed.push({ key: w.projectDir, projectDir: w.projectDir, gitCommonDir: w.gitCommonDir, gitBranch: w.gitBranch, prUrl: w.prUrl, prTitle: w.prTitle, app: w.app });
+  for (const wt of (data.worktrees ?? [])) {
+    if (hiddenRows.has(wt.projectDir) && !dismissedKeys.has(wt.projectDir)) {
+      dismissedKeys.add(wt.projectDir);
+      dismissed.push(wt);
     }
   }
 
@@ -414,19 +384,19 @@ function renderTable(data, grid) {
        </tr>` +
       (editorSectionCollapsed ? "" : dismissed
         .sort((a, b) => orgRepo(a.projectDir, a.gitCommonDir).localeCompare(orgRepo(b.projectDir, b.gitCommonDir)))
-        .map(d => `
-          <tr class="tbl-editor-row" data-dir="${escapeHtml(d.projectDir)}" data-app="${d.app ? escapeHtml(d.app) : ""}" tabindex="0" role="button">
-            <td class="tbl-star${starredDirs.has(d.projectDir) ? " starred" : ""}" data-star-dir="${escapeHtml(d.projectDir)}">${starredDirs.has(d.projectDir) ? "★" : "☆"}</td>
-            <td class="tbl-project"><div>${escapeHtml(orgRepo(d.projectDir, d.gitCommonDir))}</div><div class="tbl-project-dir">${escapeHtml(shortenPath(d.projectDir))}</div></td>
-            <td class="tbl-branch">${cellBranchHtml(d.gitBranch)}</td>
-            <td class="tbl-pr">${cellPrHtml(d.prUrl, d.prTitle)}</td>
+        .map(wt => `
+          <tr class="tbl-editor-row" data-row-key="${escapeHtml(wt.projectDir)}"${wt.terminal ? ` data-terminal="${escapeHtml(wt.terminal)}"` : ""} tabindex="0" role="button">
+            <td class="tbl-star${starredDirs.has(wt.projectDir) ? " starred" : ""}" data-star-dir="${escapeHtml(wt.projectDir)}">${starredDirs.has(wt.projectDir) ? "★" : "☆"}</td>
+            <td class="tbl-project"><div>${escapeHtml(orgRepo(wt.projectDir, wt.gitCommonDir))}</div><div class="tbl-project-dir">${escapeHtml(shortenPath(wt.projectDir))}</div></td>
+            <td class="tbl-branch">${cellBranchHtml(wt.gitBranch)}</td>
+            <td class="tbl-pr">${cellPrHtml(wt.prUrl, wt.prTitle)}</td>
             <td class="tbl-containers"></td>
             <td class="tbl-status"></td>
             <td class="tbl-stat"></td>
             <td class="tbl-stat"></td>
             <td class="tbl-stat"></td>
-            <td class="tbl-icons"><span class="tbl-icons-inner">${d.app ? `<img src="${escapeHtml(d.app)}.svg" class="editor-icon" alt="${escapeHtml(d.app)}">` : ""}</span></td>
-            <td class="tbl-actions"><button class="row-restore-btn" data-restore-key="${escapeHtml(d.key)}" title="メインに戻す">↩</button></td>
+            <td class="tbl-icons"><span class="tbl-icons-inner">${wt.terminal ? `<img src="${escapeHtml(wt.terminal)}.svg" class="editor-icon" alt="${escapeHtml(wt.terminal)}">` : ""}</span></td>
+            <td class="tbl-actions"><button class="row-restore-btn" data-restore-key="${escapeHtml(wt.projectDir)}" title="メインに戻す">↩</button></td>
           </tr>
         `).join(""))
     : "";
@@ -499,16 +469,6 @@ function renderTable(data, grid) {
     });
   });
 
-  grid.querySelectorAll(".tbl-star[data-star-pid]").forEach(cell => {
-    const pid = parseInt(cell.dataset.starPid);
-    cell.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (starredPids.has(pid)) starredPids.delete(pid);
-      else starredPids.add(pid);
-      persistAndRerender("starredPids", [...starredPids]);
-    });
-  });
-
   grid.querySelectorAll(".tbl-star[data-star-dir]").forEach(cell => {
     const dir = cell.dataset.starDir;
     cell.addEventListener("click", (e) => {
@@ -519,22 +479,20 @@ function renderTable(data, grid) {
     });
   });
 
-  grid.querySelectorAll("tr[data-pid]").forEach(row => {
-    const pid = parseInt(row.dataset.pid);
-    const hasEditor = !!row.dataset.editorApp;
-    row.addEventListener("click", () => { selectedKey = String(pid); applySelectedClass(grid); if (hasEditor) openInVSCode(row.dataset.rowKey, true); });
-    row.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") { selectedKey = String(pid); applySelectedClass(grid); if (hasEditor) openInVSCode(row.dataset.rowKey, true); }
-    });
-  });
-
-  grid.querySelectorAll("tr[data-dir]").forEach(row => {
-    const dir = row.dataset.dir;
-    const app = row.dataset.app;
-    row.addEventListener("click", () => { selectedKey = dir; applySelectedClass(grid); openInVSCode(dir, true); });
-    row.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") { selectedKey = dir; applySelectedClass(grid); openInVSCode(dir, true); }
-    });
+  grid.querySelectorAll("tr[data-row-key]").forEach(row => {
+    const key = row.dataset.rowKey;
+    const terminal = row.dataset.terminal;
+    const activate = () => {
+      selectedKey = key;
+      applySelectedClass(grid);
+      if (terminal === "ghostty") {
+        fetch("/api/focus-editor", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ app: "ghostty" }) }).catch(() => {});
+      } else if (terminal === "vscode" || terminal === "cursor") {
+        openInVSCode(key, true);
+      }
+    };
+    row.addEventListener("click", activate);
+    row.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") activate(); });
   });
 
   grid.querySelectorAll(".row-delete-btn").forEach(btn => {
@@ -678,7 +636,7 @@ function renderUsage(usage) {
 }
 
 function updateFavicon(data) {
-  const workingCount = (data?.processes ?? []).filter(p => p.status === "working").length;
+  const workingCount = (data?.worktrees ?? []).filter(wt => wt.sessions.some(s => s.status === "working")).length;
 
   const badge = workingCount > 0
     ? `<circle cx="26" cy="6" r="6" fill="#22c55e" stroke="white" stroke-width="2"/>${workingCount > 1 ? `<text x="26" y="10" font-size="8" font-weight="bold" text-anchor="middle" fill="white">${workingCount}</text>` : ""}`
@@ -707,7 +665,7 @@ function render(rawData) {
 
   const grid = document.getElementById("process-grid");
 
-  if (data.processes.length === 0 && (data.editorWindows ?? []).length === 0) {
+  if ((data.worktrees ?? []).length === 0) {
     grid.innerHTML = '<div class="empty-state">No Claude processes found</div>';
     return;
   }

@@ -12,7 +12,7 @@ export async function openWorktreeInVSCode(worktreePath: string, newWindow?: boo
 }
 
 // Activate (bring to front) without opening/changing window content
-export async function focusVSCodeWindow(app: "vscode" | "cursor" = "vscode"): Promise<boolean> {
+export async function focusVSCodeWindow(app: "vscode" | "cursor" | "ghostty" = "vscode"): Promise<boolean> {
   const config = EDITOR_CONFIGS.find(c => c.app === app);
   if (!config) return false;
   try {

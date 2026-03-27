@@ -1,5 +1,3 @@
-import type { ClaudeProcess } from "../types.js";
-
 export function escapeHtml(str: string): string {
   return String(str)
     .replace(/&/g, "&amp;")
@@ -47,20 +45,3 @@ export function shortenPath(p: string | null | undefined): string {
   return p;
 }
 
-export function mergeByDir(procs: ClaudeProcess[]): { primary: ClaudeProcess; extras: ClaudeProcess[] }[] {
-  const byDir = new Map<string, ClaudeProcess[]>();
-  for (const proc of procs) {
-    const key = proc.projectDir ?? String(proc.pid);
-    if (!byDir.has(key)) byDir.set(key, []);
-    byDir.get(key)!.push(proc);
-  }
-  return [...byDir.values()].map(dirProcs => {
-    if (dirProcs.length === 1) return { primary: dirProcs[0], extras: [] };
-    const sorted = [...dirProcs].sort((a, b) => {
-      if (a.status === "working" && b.status !== "working") return -1;
-      if (b.status === "working" && a.status !== "working") return 1;
-      return b.pid - a.pid;
-    });
-    return { primary: sorted[0], extras: sorted.slice(1) };
-  });
-}

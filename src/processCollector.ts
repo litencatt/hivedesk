@@ -1,4 +1,4 @@
-import { ClaudeProcess, DashboardData, UsageData } from "./types.js";
+import { DashboardData, UsageData, Worktree } from "./types.js";
 import { execFileAsync } from "./utils/execUtils.js";
 import { parseElapsedSeconds } from "./utils/processUtils.js";
 import { collectSessionData, collectRateLimitUsage } from "./collectors/sessionCollector.js";
@@ -25,7 +25,7 @@ function dbg(phase: string, ms: number, extra = "") {
 function findEditorApp(
   pid: number,
   procMap: Map<number, { ppid: number; command: string }>
-): "vscode" | "cursor" | null {
+): "vscode" | "cursor" | "ghostty" | null {
   let current = pid;
   const visited = new Set<number>();
   while (current > 1 && !visited.has(current)) {
@@ -40,7 +40,59 @@ function findEditorApp(
   return null;
 }
 
-async function enrichProcess(pid: number): Promise<Partial<ClaudeProcess> & { inputTokens: number; outputTokens: number }> {
+async function detectEditorFromEnv(
+  pid: number,
+  allProcMap: Map<number, { ppid: number; command: string }>
+): Promise<"vscode" | "cursor" | "ghostty" | null> {
+  try {
+    const { stdout } = await execFileAsync("ps", ["ewww", "-p", String(pid)]);
+    const termProgram = stdout.match(/TERM_PROGRAM=(\S+)/)?.[1];
+    if (termProgram === "ghostty") return "ghostty";
+    if (termProgram === "vscode") return "vscode";
+    if (termProgram === "cursor") return "cursor";
+
+    // tmux内の場合: TMUXソケットからクライアントPIDを取得し、そのプロセスツリーを辿る
+    const tmuxSocket = stdout.match(/TMUX=([^,\s]+)/)?.[1];
+    if (tmuxSocket) {
+      const { stdout: clientOut } = await execFileAsync("tmux", [
+        "-S", tmuxSocket, "list-clients", "-F", "#{client_pid}",
+      ]);
+      for (const line of clientOut.trim().split("\n")) {
+        const clientPid = parseInt(line);
+        if (!isNaN(clientPid)) {
+          const editorApp = findEditorApp(clientPid, allProcMap);
+          if (editorApp) return editorApp;
+        }
+      }
+    }
+  } catch {}
+  return null;
+}
+
+interface EnrichedProcess {
+  pid: number;
+  projectName: string;
+  projectDir: string;
+  cpuPercent: number;
+  memPercent: number;
+  status: "working" | "idle";
+  claudeStatus: "thinking" | "tool_use" | "executing" | "waiting" | null;
+  stat: string;
+  elapsedTime: string;
+  elapsedSeconds: number;
+  currentTask: string | null;
+  openFiles: string[];
+  gitBranch: string | null;
+  gitCommonDir: string | null;
+  modelName: string | null;
+  prUrl: string | null;
+  prTitle: string | null;
+  editorApp: "vscode" | "cursor" | "ghostty" | null;
+  isMcpBridge: boolean;
+  containers: import("./types.js").DockerContainer[];
+}
+
+async function enrichProcess(pid: number): Promise<Partial<EnrichedProcess> & { inputTokens: number; outputTokens: number }> {
   try {
     let t = Date.now();
     const { stdout } = await execFileAsync("lsof", ["-p", String(pid), "-n", "-P"], { maxBuffer: 10 * 1024 * 1024, timeout: 5000 });
@@ -158,10 +210,10 @@ export async function collectProcesses(): Promise<DashboardData> {
             prUrl: extra.prUrl ?? null,
             prTitle: extra.prTitle ?? null,
             claudeStatus: extra.claudeStatus ?? null,
-            editorApp: null,
+            editorApp: null as "vscode" | "cursor" | "ghostty" | null,
             isMcpBridge,
             containers: extra.containers ?? [],
-          } satisfies ClaudeProcess,
+          } satisfies EnrichedProcess,
           inputTokens: extra.inputTokens,
           outputTokens: extra.outputTokens,
         };
@@ -182,30 +234,73 @@ export async function collectProcesses(): Promise<DashboardData> {
   const allEditorWindows = await collectEditorWindows();
   dbg("collectEditorWindows", Date.now() - tw);
 
-  const visible = nonBridge.map(p => ({
+  const visible = await Promise.all(nonBridge.map(async p => ({
     ...p,
-    editorApp: findEditorApp(p.pid, allProcMap),
-  }));
+    editorApp: findEditorApp(p.pid, allProcMap) ?? await detectEditorFromEnv(p.pid, allProcMap),
+  })));
 
-  const totalWorking = visible.filter(p => p.status === "working").length;
-  const totalIdle = visible.filter(p => p.status === "idle").length;
+  // Worktree への集約
+  const worktreeMap = new Map<string, Worktree>();
 
-  // Editor windows without a Claude process
+  for (const p of visible) {
+    const key = p.projectDir || String(p.pid);
+    if (!worktreeMap.has(key)) {
+      worktreeMap.set(key, {
+        projectDir: p.projectDir,
+        projectName: p.projectName,
+        gitBranch: p.gitBranch ?? null,
+        gitCommonDir: p.gitCommonDir ?? null,
+        prUrl: p.prUrl ?? null,
+        prTitle: p.prTitle ?? null,
+        containers: p.containers ?? [],
+        terminal: p.editorApp,
+        sessions: [],
+      });
+    } else {
+      const wt = worktreeMap.get(key)!;
+      if (!wt.terminal && p.editorApp) wt.terminal = p.editorApp;
+    }
+    worktreeMap.get(key)!.sessions.push({
+      pid: p.pid,
+      cpuPercent: p.cpuPercent,
+      memPercent: p.memPercent,
+      status: p.status,
+      claudeStatus: p.claudeStatus ?? null,
+      stat: p.stat,
+      elapsedTime: p.elapsedTime,
+      elapsedSeconds: p.elapsedSeconds,
+      currentTask: p.currentTask ?? null,
+      openFiles: p.openFiles ?? [],
+      modelName: p.modelName ?? null,
+      isMcpBridge: p.isMcpBridge,
+    });
+  }
+
+  // Editor windows (Claudeなし) を追加
   const claudeDirs = new Set(visible.map(p => p.projectDir));
   const seenEditorDirs = new Set<string>();
-  const filteredEditorWindows = allEditorWindows.filter(w => {
-    if (claudeDirs.has(w.projectDir)) return false;
-    if (seenEditorDirs.has(w.projectDir)) return false;
+  for (const w of allEditorWindows) {
+    if (claudeDirs.has(w.projectDir)) continue;
+    if (seenEditorDirs.has(w.projectDir)) continue;
     seenEditorDirs.add(w.projectDir);
-    return true;
-  });
 
-  const editorWindows = await Promise.all(
-    filteredEditorWindows.map(async w => {
-      const git = await collectGitInfo(w.projectDir);
-      return { ...w, ...git };
-    })
-  );
+    const git = await collectGitInfo(w.projectDir);
+    worktreeMap.set(w.projectDir, {
+      projectDir: w.projectDir,
+      projectName: w.projectName,
+      gitBranch: git.gitBranch ?? w.gitBranch,
+      gitCommonDir: git.gitCommonDir ?? w.gitCommonDir,
+      prUrl: git.prUrl ?? w.prUrl,
+      prTitle: git.prTitle ?? w.prTitle,
+      containers: [],
+      terminal: w.app,
+      sessions: [],
+    });
+  }
+
+  const worktrees = [...worktreeMap.values()];
+  const totalWorking = visible.filter(p => p.status === "working").length;
+  const totalIdle = visible.filter(p => p.status === "idle").length;
 
   const usage: UsageData = {
     totalInputTokens,
@@ -214,8 +309,7 @@ export async function collectProcesses(): Promise<DashboardData> {
   };
 
   return {
-    processes: visible,
-    editorWindows,
+    worktrees,
     collectedAt: new Date().toISOString(),
     totalWorking,
     totalIdle,
