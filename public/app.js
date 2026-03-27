@@ -290,10 +290,13 @@ function worktreeRowHtml(wt) {
   const rowClass = primary ? primary.status : "tbl-editor-row";
   const dataPid = primary ? ` data-pid="${primary.pid}"` : "";
   const dataTerminal = wt.terminal ? ` data-terminal="${escapeHtml(wt.terminal)}"` : "";
+  const dataTmux = (wt.tmuxSocket && wt.tmuxSession)
+    ? ` data-tmux-socket="${escapeHtml(wt.tmuxSocket)}" data-tmux-session="${escapeHtml(wt.tmuxSession)}"`
+    : "";
   const iconsHtml = `<span class="tbl-icons-inner">${wt.terminal ? `<img src="${escapeHtml(wt.terminal)}.svg" class="editor-icon" alt="${escapeHtml(wt.terminal)}">` : ""}${primary ? `<img src="claude.svg" class="claude-icon" alt="Claude">` : ""}${sessions.length > 1 ? `<span class="duplicate-badge">×${sessions.length}</span>` : ""}</span>`;
 
   return `
-    <tr class="${rowClass}"${dataPid} data-row-key="${rowKey}"${dataTerminal} tabindex="0" role="button" draggable="true">
+    <tr class="${rowClass}"${dataPid} data-row-key="${rowKey}"${dataTerminal}${dataTmux} tabindex="0" role="button" draggable="true">
       <td class="tbl-star${starredDirs.has(wt.projectDir) ? " starred" : ""}" data-star-dir="${escapeHtml(wt.projectDir)}">${starredDirs.has(wt.projectDir) ? "★" : "☆"}</td>
       <td class="tbl-project"><div>${escapeHtml(orgRepo(wt.projectDir, wt.gitCommonDir))}</div><div class="tbl-project-dir">${escapeHtml(shortenPath(wt.projectDir))}</div></td>
       <td class="tbl-branch">${cellBranchHtml(wt.gitBranch)}</td>
@@ -482,10 +485,14 @@ function renderTable(data, grid) {
   grid.querySelectorAll("tr[data-row-key]").forEach(row => {
     const key = row.dataset.rowKey;
     const terminal = row.dataset.terminal;
+    const tmuxSocket = row.dataset.tmuxSocket;
+    const tmuxSession = row.dataset.tmuxSession;
     const activate = () => {
       selectedKey = key;
       applySelectedClass(grid);
-      if (terminal === "ghostty") {
+      if (tmuxSocket && tmuxSession) {
+        fetch("/api/switch-tmux-session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ socket: tmuxSocket, session: tmuxSession }) }).catch(() => {});
+      } else if (terminal === "ghostty") {
         fetch("/api/focus-editor", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ app: "ghostty" }) }).catch(() => {});
       } else if (terminal === "vscode" || terminal === "cursor") {
         openInVSCode(key, true);

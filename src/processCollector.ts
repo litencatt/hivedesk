@@ -40,33 +40,53 @@ function findEditorApp(
   return null;
 }
 
+interface EditorDetectionResult {
+  editorApp: "vscode" | "cursor" | "ghostty" | null;
+  tmuxSocket: string | null;
+  tmuxSession: string | null;
+}
+
 async function detectEditorFromEnv(
   pid: number,
   allProcMap: Map<number, { ppid: number; command: string }>
-): Promise<"vscode" | "cursor" | "ghostty" | null> {
+): Promise<EditorDetectionResult> {
   try {
     const { stdout } = await execFileAsync("ps", ["ewww", "-p", String(pid)]);
     const termProgram = stdout.match(/TERM_PROGRAM=(\S+)/)?.[1];
-    if (termProgram === "ghostty") return "ghostty";
-    if (termProgram === "vscode") return "vscode";
-    if (termProgram === "cursor") return "cursor";
+    if (termProgram === "ghostty") return { editorApp: "ghostty", tmuxSocket: null, tmuxSession: null };
+    if (termProgram === "vscode") return { editorApp: "vscode", tmuxSocket: null, tmuxSession: null };
+    if (termProgram === "cursor") return { editorApp: "cursor", tmuxSocket: null, tmuxSession: null };
 
     // tmux内の場合: TMUXソケットからクライアントPIDを取得し、そのプロセスツリーを辿る
     const tmuxSocket = stdout.match(/TMUX=([^,\s]+)/)?.[1];
+    const tmuxPane = stdout.match(/TMUX_PANE=(\S+)/)?.[1];
     if (tmuxSocket) {
+      let editorApp: "vscode" | "cursor" | "ghostty" | null = null;
       const { stdout: clientOut } = await execFileAsync("tmux", [
         "-S", tmuxSocket, "list-clients", "-F", "#{client_pid}",
       ]);
       for (const line of clientOut.trim().split("\n")) {
         const clientPid = parseInt(line);
         if (!isNaN(clientPid)) {
-          const editorApp = findEditorApp(clientPid, allProcMap);
-          if (editorApp) return editorApp;
+          const app = findEditorApp(clientPid, allProcMap);
+          if (app) { editorApp = app; break; }
         }
       }
+
+      let tmuxSession: string | null = null;
+      if (tmuxPane) {
+        try {
+          const { stdout: sessionOut } = await execFileAsync("tmux", [
+            "-S", tmuxSocket, "display-message", "-p", "-t", tmuxPane, "#{session_name}",
+          ]);
+          tmuxSession = sessionOut.trim() || null;
+        } catch {}
+      }
+
+      return { editorApp, tmuxSocket, tmuxSession };
     }
   } catch {}
-  return null;
+  return { editorApp: null, tmuxSocket: null, tmuxSession: null };
 }
 
 interface EnrichedProcess {
@@ -88,6 +108,8 @@ interface EnrichedProcess {
   prUrl: string | null;
   prTitle: string | null;
   editorApp: "vscode" | "cursor" | "ghostty" | null;
+  tmuxSocket: string | null;
+  tmuxSession: string | null;
   isMcpBridge: boolean;
   containers: import("./types.js").DockerContainer[];
 }
@@ -211,6 +233,8 @@ export async function collectProcesses(): Promise<DashboardData> {
             prTitle: extra.prTitle ?? null,
             claudeStatus: extra.claudeStatus ?? null,
             editorApp: null as "vscode" | "cursor" | "ghostty" | null,
+            tmuxSocket: null as string | null,
+            tmuxSession: null as string | null,
             isMcpBridge,
             containers: extra.containers ?? [],
           } satisfies EnrichedProcess,
@@ -234,10 +258,11 @@ export async function collectProcesses(): Promise<DashboardData> {
   const allEditorWindows = await collectEditorWindows();
   dbg("collectEditorWindows", Date.now() - tw);
 
-  const visible = await Promise.all(nonBridge.map(async p => ({
-    ...p,
-    editorApp: findEditorApp(p.pid, allProcMap) ?? await detectEditorFromEnv(p.pid, allProcMap),
-  })));
+  const visible = await Promise.all(nonBridge.map(async p => {
+    const editorFromTree = findEditorApp(p.pid, allProcMap);
+    const { editorApp: editorFromEnv, tmuxSocket, tmuxSession } = await detectEditorFromEnv(p.pid, allProcMap);
+    return { ...p, editorApp: editorFromTree ?? editorFromEnv, tmuxSocket, tmuxSession };
+  }));
 
   // Worktree への集約
   const worktreeMap = new Map<string, Worktree>();
@@ -254,11 +279,15 @@ export async function collectProcesses(): Promise<DashboardData> {
         prTitle: p.prTitle ?? null,
         containers: p.containers ?? [],
         terminal: p.editorApp,
+        tmuxSocket: p.tmuxSocket ?? null,
+        tmuxSession: p.tmuxSession ?? null,
         sessions: [],
       });
     } else {
       const wt = worktreeMap.get(key)!;
       if (!wt.terminal && p.editorApp) wt.terminal = p.editorApp;
+      if (!wt.tmuxSocket && p.tmuxSocket) wt.tmuxSocket = p.tmuxSocket;
+      if (!wt.tmuxSession && p.tmuxSession) wt.tmuxSession = p.tmuxSession;
     }
     worktreeMap.get(key)!.sessions.push({
       pid: p.pid,
@@ -294,6 +323,8 @@ export async function collectProcesses(): Promise<DashboardData> {
       prTitle: git.prTitle ?? w.prTitle,
       containers: [],
       terminal: w.app,
+      tmuxSocket: null,
+      tmuxSession: null,
       sessions: [],
     });
   }
