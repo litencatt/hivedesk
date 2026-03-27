@@ -5,10 +5,8 @@ export interface DockerContainer {
   status: string;
 }
 
-export interface ClaudeProcess {
+export interface ClaudeSession {
   pid: number;
-  projectName: string;
-  projectDir: string;
   cpuPercent: number;
   memPercent: number;
   status: "working" | "idle";
@@ -18,24 +16,20 @@ export interface ClaudeProcess {
   elapsedSeconds: number;
   currentTask: string | null;
   openFiles: string[];
-  gitBranch: string | null;
-  gitCommonDir: string | null;
   modelName: string | null;
-  prUrl: string | null;
-  prTitle: string | null;
-  editorApp: "vscode" | "cursor" | "ghostty" | null;
   isMcpBridge: boolean;
-  containers: DockerContainer[];
 }
 
-export interface EditorWindow {
-  app: "vscode" | "cursor";
+export interface Worktree {
   projectDir: string;
   projectName: string;
   gitBranch: string | null;
   gitCommonDir: string | null;
   prUrl: string | null;
   prTitle: string | null;
+  containers: DockerContainer[];
+  terminal: "vscode" | "cursor" | "ghostty" | null;
+  sessions: ClaudeSession[];
 }
 
 export interface UsageData {
@@ -52,8 +46,7 @@ export interface UsageData {
 }
 
 export interface DashboardData {
-  processes: ClaudeProcess[];
-  editorWindows: EditorWindow[];
+  worktrees: Worktree[];
   collectedAt: string;
   totalWorking: number;
   totalIdle: number;

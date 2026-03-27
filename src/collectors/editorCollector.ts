@@ -1,9 +1,17 @@
 import { readFile } from "fs/promises";
 import { execFileAsync } from "../utils/execUtils.js";
-import { EditorWindow } from "../types.js";
 import { parseStorageFolders } from "../utils/processUtils.js";
 import { EDITOR_CONFIGS } from "../editorConfig.js";
 
+export interface InternalEditorWindow {
+  app: "vscode" | "cursor" | "ghostty";
+  projectDir: string;
+  projectName: string;
+  gitBranch: string | null;
+  gitCommonDir: string | null;
+  prUrl: string | null;
+  prTitle: string | null;
+}
 
 async function getRunningBundleIds(): Promise<Set<string>> {
   try {
@@ -16,8 +24,8 @@ async function getRunningBundleIds(): Promise<Set<string>> {
   }
 }
 
-export async function collectEditorWindows(): Promise<EditorWindow[]> {
-  const results: EditorWindow[] = [];
+export async function collectEditorWindows(): Promise<InternalEditorWindow[]> {
+  const results: InternalEditorWindow[] = [];
 
   const runningIds = await getRunningBundleIds();
   for (const { app, globalStoragePath, bundleId } of EDITOR_CONFIGS) {
@@ -29,7 +37,7 @@ export async function collectEditorWindows(): Promise<EditorWindow[]> {
       const storage = JSON.parse(content) as {
         backupWorkspaces?: { folders?: Array<{ folderUri: string }> };
       };
-      results.push(...parseStorageFolders(storage, app as EditorWindow["app"]));
+      results.push(...parseStorageFolders(storage, app as InternalEditorWindow["app"]));
     } catch {
       continue;
     }

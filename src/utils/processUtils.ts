@@ -1,5 +1,3 @@
-import { EditorWindow } from "../types.js";
-
 export function encodeProjectDir(projectDir: string): string {
   // ~/.claude/projects encodes paths by replacing all non-alphanumeric characters with -
   return projectDir.replace(/[^a-zA-Z0-9]/g, "-");
@@ -18,12 +16,22 @@ export function parseElapsedSeconds(etime: string): number {
   return 0;
 }
 
+interface StorageFolder {
+  app: "vscode" | "cursor" | "ghostty";
+  projectDir: string;
+  projectName: string;
+  gitBranch: string | null;
+  gitCommonDir: string | null;
+  prUrl: string | null;
+  prTitle: string | null;
+}
+
 export function parseStorageFolders(
   storage: { backupWorkspaces?: { folders?: Array<{ folderUri: string }> } },
-  app: EditorWindow["app"]
-): EditorWindow[] {
+  app: "vscode" | "cursor" | "ghostty"
+): StorageFolder[] {
   const folders = storage.backupWorkspaces?.folders ?? [];
-  const results: EditorWindow[] = [];
+  const results: StorageFolder[] = [];
   for (const { folderUri } of folders) {
     if (!folderUri.startsWith("file://")) continue;
     const projectDir = decodeURIComponent(folderUri.replace("file://", "")).replace(/\/$/, "");

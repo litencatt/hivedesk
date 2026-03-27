@@ -1,9 +1,8 @@
 import path from "path";
 import os from "os";
-import { EditorWindow } from "./types.js";
 
 export interface EditorConfig {
-  app: EditorWindow["app"] | "ghostty";
+  app: "vscode" | "cursor" | "ghostty";
   appName: string;
   bundleId: string;
   globalStoragePath?: string;

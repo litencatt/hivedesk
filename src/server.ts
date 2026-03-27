@@ -38,7 +38,7 @@ async function getProcessData(): Promise<DashboardData> {
   }
   const t0 = Date.now();
   const data = await collectProcesses();
-  dbg(`collectProcesses: ${Date.now() - t0}ms, procs=${data.processes.length}, editors=${data.editorWindows.length}`);
+  dbg(`collectProcesses: ${Date.now() - t0}ms, worktrees=${data.worktrees.length}`);
   cache = { data, fetchedAt: now };
   return data;
 }
@@ -92,13 +92,13 @@ app.post("/api/focus", async (req: Request, res: Response) => {
     return;
   }
   const data = await getProcessData();
-  const proc = data.processes.find(p => p.pid === pid);
-  if (!proc) {
+  const wt = data.worktrees.find(w => w.sessions.some(s => s.pid === pid));
+  if (!wt) {
     res.status(404).json({ error: "Process not found" });
     return;
   }
   res.json({ success: true });
-  focusVSCodeWindow(proc.editorApp ?? "vscode").catch(() => {});
+  focusVSCodeWindow(wt.terminal ?? "vscode").catch(() => {});
 });
 
 // Focus editor window (activate without changing window content)
