@@ -305,6 +305,36 @@ export async function collectProcesses(): Promise<DashboardData> {
     });
   }
 
+  // 既知のtmuxソケットからディレクトリ→tmux情報のマップを構築
+  const knownSockets = new Set(visible.map(p => p.tmuxSocket).filter((s): s is string => !!s));
+  const tmuxDirMap = new Map<string, { socket: string; session: string; editorApp: "vscode" | "cursor" | "ghostty" | null }>();
+  for (const socket of knownSockets) {
+    try {
+      // クライアントPIDからエディタを特定（tmuxサーバーはdaemonなのでpane_pidでは辿れない）
+      let socketEditorApp: "vscode" | "cursor" | "ghostty" | null = null;
+      const { stdout: clientOut } = await execFileAsync("tmux", [
+        "-S", socket, "list-clients", "-F", "#{client_pid}",
+      ]);
+      for (const line of clientOut.trim().split("\n")) {
+        const clientPid = parseInt(line);
+        if (!isNaN(clientPid)) {
+          const app = findEditorApp(clientPid, allProcMap);
+          if (app) { socketEditorApp = app; break; }
+        }
+      }
+
+      const { stdout: panesOut } = await execFileAsync("tmux", [
+        "-S", socket, "list-panes", "-a", "-F", "#{pane_current_path}\t#{session_name}:#{window_index}",
+      ]);
+      for (const line of panesOut.trim().split("\n")) {
+        const [dir, target] = line.split("\t");
+        if (dir && target && !tmuxDirMap.has(dir)) {
+          tmuxDirMap.set(dir, { socket, session: target, editorApp: socketEditorApp });
+        }
+      }
+    } catch {}
+  }
+
   // Editor windows (Claudeなし) を追加
   const claudeDirs = new Set(visible.map(p => p.projectDir));
   const seenEditorDirs = new Set<string>();
@@ -314,6 +344,7 @@ export async function collectProcesses(): Promise<DashboardData> {
     seenEditorDirs.add(w.projectDir);
 
     const git = await collectGitInfo(w.projectDir);
+    const tmuxInfo = tmuxDirMap.get(w.projectDir) ?? null;
     worktreeMap.set(w.projectDir, {
       projectDir: w.projectDir,
       projectName: w.projectName,
@@ -322,9 +353,9 @@ export async function collectProcesses(): Promise<DashboardData> {
       prUrl: git.prUrl ?? w.prUrl,
       prTitle: git.prTitle ?? w.prTitle,
       containers: [],
-      terminal: w.app,
-      tmuxSocket: null,
-      tmuxSession: null,
+      terminal: tmuxInfo?.editorApp ?? w.app,
+      tmuxSocket: tmuxInfo?.socket ?? null,
+      tmuxSession: tmuxInfo?.session ?? null,
       sessions: [],
     });
   }
