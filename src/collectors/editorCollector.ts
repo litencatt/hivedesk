@@ -22,13 +22,14 @@ export async function collectEditorWindows(): Promise<EditorWindow[]> {
   const runningIds = await getRunningBundleIds();
   for (const { app, globalStoragePath, bundleId } of EDITOR_CONFIGS) {
     if (!runningIds.has(bundleId)) continue;
+    if (!globalStoragePath) continue;
 
     try {
       const content = await readFile(globalStoragePath, "utf-8");
       const storage = JSON.parse(content) as {
         backupWorkspaces?: { folders?: Array<{ folderUri: string }> };
       };
-      results.push(...parseStorageFolders(storage, app));
+      results.push(...parseStorageFolders(storage, app as EditorWindow["app"]));
     } catch {
       continue;
     }

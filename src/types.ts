@@ -23,7 +23,7 @@ export interface ClaudeProcess {
   modelName: string | null;
   prUrl: string | null;
   prTitle: string | null;
-  editorApp: "vscode" | "cursor" | null;
+  editorApp: "vscode" | "cursor" | "ghostty" | null;
   isMcpBridge: boolean;
   containers: DockerContainer[];
 }

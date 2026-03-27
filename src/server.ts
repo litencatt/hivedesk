@@ -105,7 +105,8 @@ app.post("/api/focus", async (req: Request, res: Response) => {
 app.post("/api/focus-editor", async (req: Request, res: Response) => {
   const { app: editorApp } = req.body as { app?: string };
   res.json({ success: true });
-  focusVSCodeWindow(editorApp === "cursor" ? "cursor" : "vscode").catch(() => {});
+  const app = editorApp === "cursor" ? "cursor" : editorApp === "ghostty" ? "ghostty" : "vscode";
+  focusVSCodeWindow(app).catch(() => {});
 });
 
 // Open worktree in VSCode via extension

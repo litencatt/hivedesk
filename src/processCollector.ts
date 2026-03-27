@@ -25,7 +25,7 @@ function dbg(phase: string, ms: number, extra = "") {
 function findEditorApp(
   pid: number,
   procMap: Map<number, { ppid: number; command: string }>
-): "vscode" | "cursor" | null {
+): "vscode" | "cursor" | "ghostty" | null {
   let current = pid;
   const visited = new Set<number>();
   while (current > 1 && !visited.has(current)) {

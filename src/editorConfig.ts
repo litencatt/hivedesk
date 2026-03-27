@@ -3,10 +3,10 @@ import os from "os";
 import { EditorWindow } from "./types.js";
 
 export interface EditorConfig {
-  app: EditorWindow["app"];
+  app: EditorWindow["app"] | "ghostty";
   appName: string;
   bundleId: string;
-  globalStoragePath: string;
+  globalStoragePath?: string;
   processPattern: RegExp;
 }
 
@@ -24,5 +24,11 @@ export const EDITOR_CONFIGS: EditorConfig[] = [
     bundleId: "com.todesktop.230313mzl4w4u92",
     globalStoragePath: process.env.BYAKUGAN_CURSOR_STORAGE_PATH ?? path.join(os.homedir(), "Library/Application Support/Cursor/User/globalStorage/storage.json"),
     processPattern: /\/Cursor\.app\//,
+  },
+  {
+    app: "ghostty",
+    appName: "Ghostty",
+    bundleId: "com.mitchellh.ghostty",
+    processPattern: /\/Ghostty\.app\//,
   },
 ];
