@@ -32,10 +32,12 @@ async function getFileMtime(filePath: string): Promise<number | null> {
 // Fetch all open PRs for a repo in one gh call, keyed by branch name
 async function fetchRepoPrs(repoDir: string): Promise<Map<string, { url: string; title: string }>> {
   const map = new Map<string, { url: string; title: string }>();
+  // repoDir は .git ディレクトリのパスなので、リポジトリルートを使う
+  const repoRoot = repoDir.endsWith("/.git") ? repoDir.slice(0, -5) : path.dirname(repoDir);
   try {
     const { stdout } = await execFileAsync(
-      "gh", ["pr", "list", "--state", "open", "--limit", "100", "--json", "url,title,headRefName"],
-      { cwd: repoDir, timeout: 8000 }
+      "gh", ["pr", "list", "--state", "open", "--limit", "500", "--json", "url,title,headRefName"],
+      { cwd: repoRoot, timeout: 15000 }
     );
     const prs = JSON.parse(stdout) as Array<{ url: string; title: string; headRefName: string }>;
     for (const pr of prs) {
