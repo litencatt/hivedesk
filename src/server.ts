@@ -4,6 +4,7 @@ import os from "os";
 import { watch } from "fs";
 import { collectProcesses } from "./processCollector.js";
 import { focusVSCodeWindow, openWorktreeInVSCode } from "./vscodeController.js";
+import { execFileAsync } from "./utils/execUtils.js";
 import { DashboardData } from "./types.js";
 
 const app = express();
@@ -107,6 +108,21 @@ app.post("/api/focus-editor", async (req: Request, res: Response) => {
   res.json({ success: true });
   const app = editorApp === "cursor" ? "cursor" : editorApp === "ghostty" ? "ghostty" : "vscode";
   focusVSCodeWindow(app).catch(() => {});
+});
+
+// Switch tmux session
+app.post("/api/switch-tmux-session", async (req: Request, res: Response) => {
+  const { socket, session } = req.body as { socket?: string; session?: string };
+  if (!socket || !session) {
+    res.status(400).json({ error: "socket and session are required" });
+    return;
+  }
+  try {
+    await execFileAsync("tmux", ["-S", socket, "switch-client", "-t", session]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(502).json({ success: false, error: String(err) });
+  }
 });
 
 // Open worktree in VSCode via extension

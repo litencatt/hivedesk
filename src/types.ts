@@ -29,6 +29,8 @@ export interface Worktree {
   prTitle: string | null;
   containers: DockerContainer[];
   terminal: "vscode" | "cursor" | "ghostty" | null;
+  tmuxSocket: string | null;
+  tmuxSession: string | null;
   sessions: ClaudeSession[];
 }
 
