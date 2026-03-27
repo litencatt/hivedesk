@@ -492,7 +492,8 @@ function renderTable(data, grid) {
       applySelectedClass(grid);
       if (tmuxSocket && tmuxSession) {
         fetch("/api/switch-tmux-session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ socket: tmuxSocket, session: tmuxSession }) }).catch(() => {});
-      } else if (terminal === "ghostty") {
+      }
+      if (terminal === "ghostty") {
         fetch("/api/focus-editor", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ app: "ghostty" }) }).catch(() => {});
       } else if (terminal === "vscode" || terminal === "cursor") {
         openInVSCode(key, true);

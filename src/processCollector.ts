@@ -77,7 +77,7 @@ async function detectEditorFromEnv(
       if (tmuxPane) {
         try {
           const { stdout: sessionOut } = await execFileAsync("tmux", [
-            "-S", tmuxSocket, "display-message", "-p", "-t", tmuxPane, "#{session_name}",
+            "-S", tmuxSocket, "display-message", "-p", "-t", tmuxPane, "#{session_name}:#{window_index}",
           ]);
           tmuxSession = sessionOut.trim() || null;
         } catch {}
