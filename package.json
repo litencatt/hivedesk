@@ -11,6 +11,9 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "dev": "BYAKUGAN_DEBUG=true tsx watch src/server.ts",
+    "dev:bg": "tsx watch src/server.ts > /tmp/byakugan.log 2>&1 & echo $! > /tmp/byakugan.pid && echo \"byakugan started (PID: $(cat /tmp/byakugan.pid))\"",
+    "dev:stop": "kill $(cat /tmp/byakugan.pid) && rm /tmp/byakugan.pid && echo 'byakugan stopped'",
+    "dev:log": "tail -f /tmp/byakugan.log",
     "test": "vitest run",
     "test:watch": "vitest"
   },
