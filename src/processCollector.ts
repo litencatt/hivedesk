@@ -353,7 +353,7 @@ export async function collectProcesses(): Promise<DashboardData> {
       prUrl: git.prUrl ?? w.prUrl,
       prTitle: git.prTitle ?? w.prTitle,
       containers: [],
-      terminal: tmuxInfo?.editorApp ?? w.app,
+      terminal: tmuxInfo?.editorApp ?? null,
       tmuxSocket: tmuxInfo?.socket ?? null,
       tmuxSession: tmuxInfo?.session ?? null,
       sessions: [],
