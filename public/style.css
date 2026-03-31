@@ -858,13 +858,6 @@ td.tbl-actions,
 }
 
 /* ── Editor rows ── */
-.tbl-editor-row {
-  opacity: 0.5;
-}
-
-.tbl-editor-row:hover {
-  opacity: 1 !important;
-}
 
 /* ── Selection ── */
 .process-table tbody tr.item-selected td {
